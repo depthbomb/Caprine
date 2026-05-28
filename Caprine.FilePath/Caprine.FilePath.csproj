@@ -18,6 +18,9 @@
         <Deterministic>true</Deterministic>
         <PackageReadmeFile>README.md</PackageReadmeFile>
         <Version>0.1.0</Version>
+        <PackageProjectUrl>https://github.com/depthbomb/Caprine/tree/master/Caprine.FilePath</PackageProjectUrl>
+        <PackageLicenseUrl>https://raw.githubusercontent.com/depthbomb/Caprine/refs/heads/master/LICENSE</PackageLicenseUrl>
+        <RepositoryUrl>https://github.com/depthbomb/Caprine/tree/master/Caprine.FilePath</RepositoryUrl>
     </PropertyGroup>
 
     <ItemGroup>
