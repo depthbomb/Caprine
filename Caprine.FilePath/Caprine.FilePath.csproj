@@ -7,7 +7,7 @@
         <TargetFrameworks>net10.0;net9.0;net8.0</TargetFrameworks>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
         <Title>Caprine.FilePath</Title>
-        <Description>A Python PathLib-like class for .NET.</Description>
+        <Description>A lightweight class for .NET inspired by Python’s pathlib.</Description>
         <Copyright>Copyright (c) 2026 Caprine Logic</Copyright>
         <AssemblyVersion>0.1.0</AssemblyVersion>
         <FileVersion>0.1.0</FileVersion>
@@ -19,8 +19,9 @@
         <PackageReadmeFile>README.md</PackageReadmeFile>
         <Version>0.1.0</Version>
         <PackageProjectUrl>https://github.com/depthbomb/Caprine/tree/master/Caprine.FilePath</PackageProjectUrl>
-        <PackageLicenseUrl>https://raw.githubusercontent.com/depthbomb/Caprine/refs/heads/master/LICENSE</PackageLicenseUrl>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
         <RepositoryUrl>https://github.com/depthbomb/Caprine/tree/master/Caprine.FilePath</RepositoryUrl>
+        <Company>Caprine Logic</Company>
     </PropertyGroup>
 
     <ItemGroup>
