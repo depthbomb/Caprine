@@ -1,3 +1,4 @@
 <Solution>
   <Project Path="Caprine.FilePath/Caprine.FilePath.csproj" />
+  <Project Path="Caprine.FilePath.Tests/Caprine.FilePath.Tests.csproj" />
 </Solution>

@@ -1,31 +1,25 @@
 ﻿using System.Text;
 using System.Diagnostics;
-using JetBrains.Annotations;
 using System.Collections.Concurrent;
 using System.Text.RegularExpressions;
 using System.Diagnostics.CodeAnalysis;
 
 namespace Caprine.FilePath;
 
-[PublicAPI]
 [DebuggerDisplay("{_path}")]
 public sealed class FilePath : IEquatable<FilePath>, IComparable<FilePath>
 {
-    private string?   _resolvedPath;
-    private string[]? _parts;
-    private string[]? _suffixes;
+    private string? _resolvedPath;
 
     private static readonly ConcurrentDictionary<string, Regex> GlobCache = new();
 
-    private static readonly StringComparison PathComparison =
-        OperatingSystem.IsWindows()
-            ? StringComparison.OrdinalIgnoreCase
-            : StringComparison.Ordinal;
+    private static readonly StringComparison PathComparison = OperatingSystem.IsWindows()
+        ? StringComparison.OrdinalIgnoreCase
+        : StringComparison.Ordinal;
 
-    private static readonly StringComparer PathComparer =
-        OperatingSystem.IsWindows()
-            ? StringComparer.OrdinalIgnoreCase
-            : StringComparer.Ordinal;
+    private static readonly StringComparer PathComparer = OperatingSystem.IsWindows()
+        ? StringComparer.OrdinalIgnoreCase
+        : StringComparer.Ordinal;
 
     private readonly string _path;
 
@@ -56,7 +50,10 @@ public sealed class FilePath : IEquatable<FilePath>, IComparable<FilePath>
 
     public string FullPath => _path;
 
-    public string[] Parts => _parts ??= CalculateParts();
+    public string[] Parts
+    {
+        get => field ??= CalculateParts();
+    }
 
     public string Drive => Path.GetPathRoot(_path) is [_, ':', ..] r ? r[..2] : "";
 
@@ -107,7 +104,10 @@ public sealed class FilePath : IEquatable<FilePath>, IComparable<FilePath>
 
     public string Suffix => Path.GetExtension(_path) ?? "";
 
-    public string[] Suffixes => _suffixes ??= CalculateSuffixes();
+    public string[] Suffixes
+    {
+        get => field ??= CalculateSuffixes();
+    }
 
     public bool Exists => File.Exists(_path) || Directory.Exists(_path);
 
@@ -485,36 +485,42 @@ public sealed class FilePath : IEquatable<FilePath>, IComparable<FilePath>
 
     private string[] CalculateSuffixes()
     {
-        var name      = Name;
-        var exts      = new List<string>();
-        var remainder = name;
+        var name = Name;
+        List<string> exts = [with(capacity: name.AsSpan().Count('.'))];
+        var remainder = name.AsSpan();
 
-        string ext;
-        while (!string.IsNullOrEmpty(ext = Path.GetExtension(remainder)))
+        ReadOnlySpan<char> ext;
+        while (!(ext = Path.GetExtension(remainder)).IsEmpty)
         {
-            exts.Insert(0, ext);
+            exts.Add(ext.ToString());
             remainder = Path.GetFileNameWithoutExtension(remainder);
         }
 
-        return exts.ToArray();
+        exts.Reverse();
+
+        return [.. exts];
     }
 
     private string[] CalculateParts()
     {
-        var partsList = new List<string>();
-        var anchor    = Anchor;
+        var anchor = Anchor;
+        var relative = _path.AsSpan(anchor.Length).Trim(Path.DirectorySeparatorChar);
+        List<string> partsList = [with(capacity: relative.Count(Path.DirectorySeparatorChar) + 2)];
         if (!string.IsNullOrEmpty(anchor))
         {
             partsList.Add(anchor);
         }
 
-        var rel = _path[anchor.Length..].Trim(Path.DirectorySeparatorChar);
-        if (!string.IsNullOrEmpty(rel))
+        foreach (var range in relative.Split(Path.DirectorySeparatorChar))
         {
-            partsList.AddRange(rel.Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries));
+            var part = relative[range];
+            if (!part.IsEmpty)
+            {
+                partsList.Add(part.ToString());
+            }
         }
 
-        return partsList.ToArray();
+        return [.. partsList];
     }
 
     private static string Normalize(string path)
