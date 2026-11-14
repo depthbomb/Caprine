@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'Caprine.*/**'
+      - '**/*.props'
+      - '**/*.targets'
+      - 'global.json'
+      - '.github/workflows/**'
+  pull_request:
+    paths:
+      - 'Caprine.*/**'
+      - '**/*.props'
+      - '**/*.targets'
+      - 'global.json'
+      - '.github/workflows/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      projects: ${{ steps.projects.outputs.projects }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Discover committed test projects
+        id: projects
+        shell: pwsh
+        run: |
+          $projects = @(git ls-files 'Caprine.*.Tests/Caprine.*.Tests.csproj')
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }
+          if ($projects.Count -eq 0) {
+            throw 'No Caprine test projects were found.'
+          }
+
+          $json = ConvertTo-Json -InputObject $projects -Compress
+          "projects=$json" >> $env:GITHUB_OUTPUT
+
+  test:
+    needs: discover
+    strategy:
+      fail-fast: false
+      matrix:
+        project: ${{ fromJson(needs.discover.outputs.projects) }}
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          dotnet-version: |
+            10.0.x
+            11.0.x
+      - name: Test and pack
+        shell: pwsh
+        env:
+          TEST_PROJECT: ${{ matrix.project }}
+        run: |
+          dotnet test $env:TEST_PROJECT --configuration Release --nologo -p:ContinuousIntegrationBuild=true -warnaserror
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }
+
+          $package = [System.IO.Path]::GetFileNameWithoutExtension($env:TEST_PROJECT) -replace '\.Tests$', ''
+          dotnet pack "$package/$package.csproj" --configuration Release --no-build --no-restore --nologo -p:ContinuousIntegrationBuild=true -warnaserror
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }

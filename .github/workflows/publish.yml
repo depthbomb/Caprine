@@ -1,0 +1,189 @@
+name: Publish NuGet package
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish the selected Caprine package release tag to NuGet
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-nuget-${{ github.ref }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: pwsh
+
+jobs:
+  build:
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.event.release.tag_name, 'Caprine.')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      package: ${{ steps.version.outputs.package }}
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          dotnet-version: |
+            10.0.x
+            11.0.x
+      - name: Check release tag and package version
+        id: version
+        run: |
+          if ($env:GITHUB_REF_TYPE -ne 'tag' -or $env:GITHUB_REF_NAME -notmatch '^(?<package>Caprine\.[A-Za-z][A-Za-z0-9.]*)-v(?<version>\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)$') {
+            throw 'Select a Caprine.<package>-v<version> tag when running this workflow.'
+          }
+
+          $package = $Matches.package
+          $tagVersion = $Matches.version
+          $project = "$package/$package.csproj"
+          $testProject = "$package.Tests/$package.Tests.csproj"
+          if (!(Test-Path -LiteralPath $project) -or !(Test-Path -LiteralPath $testProject)) {
+            throw "The release needs $project and $testProject."
+          }
+
+          $properties = dotnet msbuild $project -nologo -getProperty:PackageId,PackageVersion,IsPackable
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }
+          $metadata = ($properties | ConvertFrom-Json).Properties
+          if ($metadata.IsPackable -ne 'true' -or $metadata.PackageId -cne $package -or $metadata.PackageVersion -cne $tagVersion) {
+            throw 'The tag must identify a packable project with the same package ID and version.'
+          }
+
+          git merge-base --is-ancestor HEAD origin/master
+          if ($LASTEXITCODE -ne 0) {
+            throw 'The release commit must be part of master.'
+          }
+
+          "package=$package" >> $env:GITHUB_OUTPUT
+          "version=$tagVersion" >> $env:GITHUB_OUTPUT
+      - name: Test both target frameworks
+        env:
+          PACKAGE_ID: ${{ steps.version.outputs.package }}
+        run: dotnet test "$env:PACKAGE_ID.Tests/$env:PACKAGE_ID.Tests.csproj" -c Release --nologo -p:ContinuousIntegrationBuild=true -warnaserror
+      - name: Pack and verify release assets
+        env:
+          PACKAGE_ID: ${{ steps.version.outputs.package }}
+          PACKAGE_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          dotnet pack "$env:PACKAGE_ID/$env:PACKAGE_ID.csproj" -c Release --no-build --no-restore --nologo -p:ContinuousIntegrationBuild=true -o artifacts -warnaserror
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }
+
+          foreach ($extension in @('nupkg', 'snupkg')) {
+            $path = "artifacts/$env:PACKAGE_ID.$env:PACKAGE_VERSION.$extension"
+            $archive = [System.IO.Compression.ZipFile]::OpenRead((Resolve-Path -LiteralPath $path))
+            try {
+              $reader = [System.IO.StreamReader]::new($archive.GetEntry("$env:PACKAGE_ID.nuspec").Open())
+              try {
+                [xml]$spec = $reader.ReadToEnd()
+              }
+              finally {
+                $reader.Dispose()
+              }
+              if ($spec.package.metadata.id -cne $env:PACKAGE_ID -or $spec.package.metadata.version -cne $env:PACKAGE_VERSION -or $spec.package.metadata.repository.commit -cne $env:GITHUB_SHA) {
+                throw "Package identity, version, or source commit is wrong in $path."
+              }
+            }
+            finally {
+              $archive.Dispose()
+            }
+          }
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: nuget-packages
+          path: artifacts/*
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+
+  publish:
+    needs: build
+    if: github.event_name == 'release' || inputs.publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: nuget
+      url: https://www.nuget.org/packages/${{ needs.build.outputs.package }}/${{ needs.build.outputs.version }}
+    permissions:
+      contents: write
+      id-token: write
+    env:
+      PACKAGE_ID: ${{ needs.build.outputs.package }}
+      PACKAGE_VERSION: ${{ needs.build.outputs.version }}
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: nuget-packages
+          path: artifacts
+      - name: Check publishing configuration and release
+        env:
+          NUGET_USER: ${{ vars.NUGET_USER }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:NUGET_USER)) {
+            throw 'Set the NUGET_USER variable in the nuget environment.'
+          }
+
+          gh release view $env:GITHUB_REF_NAME --repo $env:GITHUB_REPOSITORY
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }
+      - name: Authenticate to NuGet with GitHub OIDC
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1.2.0
+        id: login
+        with:
+          user: ${{ vars.NUGET_USER }}
+      - name: Publish package and symbols
+        env:
+          NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
+        run: |
+          $headers = @{
+            'X-NuGet-ApiKey' = $env:NUGET_API_KEY
+            'X-NuGet-Protocol-Version' = '4.1.0'
+          }
+          $packages = @(
+            @{
+              Extension = 'nupkg'
+              Endpoint = 'package'
+            },
+            @{
+              Extension = 'snupkg'
+              Endpoint = 'symbolpackage'
+            }
+          )
+          foreach ($item in $packages) {
+            $file = Get-Item -LiteralPath "artifacts/$env:PACKAGE_ID.$env:PACKAGE_VERSION.$($item.Extension)"
+            $response = Invoke-WebRequest -Uri "https://www.nuget.org/api/v2/$($item.Endpoint)" -Method Put -Headers $headers -Form @{ package = $file } -MaximumRedirection 0 -SkipHttpErrorCheck
+            if ($response.StatusCode -eq 409) {
+              Write-Host "$($file.Name) has already been uploaded."
+            }
+            elseif ($response.StatusCode -notin @(201, 202)) {
+              throw "NuGet rejected $($file.Name): HTTP $($response.StatusCode). $($response.Content)"
+            }
+            else {
+              Write-Host "Uploaded $($file.Name)."
+            }
+          }
+      - name: Attach packages to the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload $env:GITHUB_REF_NAME "artifacts/$env:PACKAGE_ID.$env:PACKAGE_VERSION.nupkg" "artifacts/$env:PACKAGE_ID.$env:PACKAGE_VERSION.snupkg" --repo $env:GITHUB_REPOSITORY --clobber
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }
