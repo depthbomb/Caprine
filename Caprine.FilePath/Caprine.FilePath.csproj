@@ -1,23 +1,24 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
         <LangVersion>15</LangVersion>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         <TargetFrameworks>net10.0;net11.0</TargetFrameworks>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
         <Title>Caprine.FilePath</Title>
         <Description>A lightweight class for .NET inspired by Python’s pathlib.</Description>
         <Copyright>Copyright (c) 2026 Caprine Logic</Copyright>
-        <AssemblyVersion>0.1.1</AssemblyVersion>
-        <FileVersion>0.1.1</FileVersion>
+        <AssemblyVersion>0.2.0</AssemblyVersion>
+        <FileVersion>0.2.0</FileVersion>
         <NeutralLanguage>en-US</NeutralLanguage>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
         <IncludeSymbols>true</IncludeSymbols>
         <SymbolPackageFormat>snupkg</SymbolPackageFormat>
         <Deterministic>true</Deterministic>
         <PackageReadmeFile>README.md</PackageReadmeFile>
-        <Version>0.1.1</Version>
+        <Version>0.2.0</Version>
         <PackageProjectUrl>https://github.com/depthbomb/Caprine/tree/master/Caprine.FilePath</PackageProjectUrl>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
         <RepositoryUrl>https://github.com/depthbomb/Caprine/tree/master/Caprine.FilePath</RepositoryUrl>

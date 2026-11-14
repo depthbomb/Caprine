@@ -6,24 +6,24 @@ public sealed class FilePathTests
     [InlineData("archive.tar.gz", ".tar|.gz")]
     [InlineData("file.txt", ".txt")]
     [InlineData("README", "")]
-    [InlineData(".gitignore", ".gitignore")]
-    [InlineData(".config.json", ".config|.json")]
-    [InlineData("name.", "")]
-    [InlineData("a..b", ".b")]
+    [InlineData(".gitignore", "")]
+    [InlineData(".config.json", ".json")]
+    [InlineData("name.", ".")]
+    [InlineData("a..b", ".|.b")]
     [InlineData("folder.with.dots/file.txt", ".txt")]
     public void SuffixesPreserveOrderAndEdgeCases(string value, string expected)
     {
         var path = new FilePath(value);
 
         Assert.Equal(expected, string.Join('|', path.Suffixes));
-        Assert.Same(path.Suffixes, path.Suffixes);
+        Assert.Equal<string>(path.Suffixes, path.Suffixes);
     }
 
     [Theory]
     [InlineData("alpha/beta/file.txt", "alpha|beta|file.txt")]
     [InlineData("alpha//beta///file.txt", "alpha|beta|file.txt")]
     [InlineData("alpha/beta/", "alpha|beta")]
-    [InlineData(".", ".")]
+    [InlineData(".", "")]
     [InlineData("../file", "..|file")]
     [InlineData("café/🐐.txt", "café|🐐.txt")]
     public void RelativePartsSkipEmptySegments(string value, string expected)
@@ -31,7 +31,7 @@ public sealed class FilePathTests
         var path = new FilePath(value);
 
         Assert.Equal(expected, string.Join('|', path.Parts));
-        Assert.Same(path.Parts, path.Parts);
+        Assert.Equal<string>(path.Parts, path.Parts);
     }
 
     [Fact]
@@ -40,8 +40,8 @@ public sealed class FilePathTests
         var root = Path.GetPathRoot(Path.GetTempPath())!;
         var path = new FilePath(Path.Combine(root, "alpha", "file.txt"));
 
-        Assert.Equal([root, "alpha", "file.txt"], path.Parts);
-        Assert.Equal([root], new FilePath(root).Parts);
+        Assert.Equal<string>([root, "alpha", "file.txt"], path.Parts);
+        Assert.Equal<string>([root], new FilePath(root).Parts);
     }
 
     [Fact]
@@ -49,8 +49,8 @@ public sealed class FilePathTests
     {
         var path = new FilePath("alpha").JoinPath("beta", "archive.tar.gz");
 
-        Assert.Equal(Path.Combine("alpha", "beta", "archive.tar.gz"), path.FullPath);
-        Assert.Equal(Path.Combine("alpha", "beta", "archive.tar.zip"), path.WithSuffix(".zip").FullPath);
+        Assert.Equal(Path.Combine("alpha", "beta", "archive.tar.gz"), path.Value);
+        Assert.Equal(Path.Combine("alpha", "beta", "archive.tar.zip"), path.WithSuffix(".zip").Value);
         Assert.Equal("archive.tar", path.Stem);
     }
 
@@ -71,7 +71,7 @@ public sealed class FilePathTests
         }
         finally
         {
-            File.Delete(path.FullPath);
+            File.Delete(path.Value);
             directory.Delete();
         }
     }
