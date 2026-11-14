@@ -296,6 +296,63 @@ public sealed class FileSystemTests
         Assert.Null(JsonSerializer.Deserialize<FilePath>("null"));
     }
 
+    [Fact]
+    public void CancellationStopsWithinAnAlreadyBufferedDirectory()
+    {
+        using var fixture = new TestDirectory();
+        (fixture.Path / "one").Touch();
+        (fixture.Path / "two").Touch();
+        using var cts = new CancellationTokenSource();
+        using var files = fixture.Path.EnumerateFiles(ct: cts.Token).GetEnumerator();
+        Assert.True(files.MoveNext());
+        cts.Cancel();
+        Assert.Throws<OperationCanceledException>(() => files.MoveNext());
+    }
+
+    [Fact]
+    public void DirectoryMergesCannotWriteBackIntoTheirOwnSource()
+    {
+        using var fixture = new TestDirectory();
+        var source = fixture.Path / "source";
+        (source / "source").Mkdir(parents: true);
+        (source / "source" / "original").WriteText("keep");
+        Assert.Throws<IOException>(() => source.CopyTo(fixture.Path, new PathCopyOptions { MergeDirectories = true, Overwrite = true }));
+        Assert.Equal("keep", (source / "source" / "original").ReadText());
+        Assert.False((source / "original").Exists);
+    }
+
+    [Fact]
+    public void CopyingFollowedDirectoryLinksRejectsDestinationsInsideTheirTargets()
+    {
+        using var fixture = new TestDirectory();
+        var root = fixture.Path;
+        (root / "source").Mkdir();
+        (root / "outside").Mkdir();
+        (root / "source" / "link").CreateSymbolicLink(root / "outside", isDirectory: true);
+        Assert.Throws<IOException>(() => (root / "source").CopyTo(root / "outside" / "copy", new PathCopyOptions { FollowSymbolicLinks = true }));
+        Assert.False((root / "outside" / "copy" / "link").Exists);
+    }
+
+    [Fact]
+    public void LinkCopiesCanReplaceFilesWithoutOverwritingTheirTargets()
+    {
+        using var fixture = new TestDirectory();
+        var root = fixture.Path;
+        (root / "source").CreateSymbolicLink("missing");
+        (root / "destination").WriteText("replace");
+        (root / "source").CopyTo(root / "destination", new PathCopyOptions { Overwrite = true });
+        Assert.Equal("missing", (root / "destination").LinkTarget);
+        Assert.Throws<FileNotFoundException>(() => (root / "absent").CopyTo(root / "destination", new PathCopyOptions { Overwrite = true }));
+        Assert.Equal("missing", (root / "destination").LinkTarget);
+    }
+
+    [Fact]
+    public void WindowsFilenameValidationRejectsControlCharactersOnEveryPlatform()
+    {
+        Assert.Throws<ArgumentException>(() => new WindowsPath("file").WithName("invalid\u0001name"));
+        Assert.Equal("valid\u0001name", new PosixPath("file").WithName("valid\u0001name").Name);
+    }
+
     private sealed class TestDirectory : IDisposable
     {
         internal FilePath Path { get; } = new FilePath(Directory.CreateTempSubdirectory("Caprine-tests-").FullName);

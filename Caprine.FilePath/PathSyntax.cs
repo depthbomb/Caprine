@@ -57,7 +57,7 @@ internal sealed class PathSyntax
     {
         ArgumentException.ThrowIfNullOrEmpty(name);
         if (name is "." or ".." || name.Contains('\0') || name.Contains('/') ||
-            (flavor == PathFlavor.Windows && name.AsSpan().IndexOfAny("\\:<>\"|?*".AsSpan()) >= 0))
+            (flavor == PathFlavor.Windows && (name.AsSpan().IndexOfAny("\\:<>\"|?*".AsSpan()) >= 0 || name.AsSpan().IndexOfAnyInRange('\u0001', '\u001f') >= 0)))
         {
             throw new ArgumentException("A name must be a single filename component.", nameof(name));
         }

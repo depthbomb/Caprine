@@ -14,6 +14,7 @@ public sealed partial class FilePath
         ArgumentNullException.ThrowIfNull(target);
         options ??= new PathCopyOptions();
         EnsureDistinctDestination(target);
+        var sourceRoot = IsDirectory ? Resolve(true) : null;
         var pending = new Stack<(FilePath Source, FilePath Target, HashSet<FilePath> Ancestors, bool Finish)>();
         pending.Push((this, target, [], false));
         while (pending.TryPop(out var item))
@@ -23,6 +24,11 @@ public sealed partial class FilePath
             {
                 CopyMetadata(item.Source, item.Target);
                 continue;
+            }
+
+            if (sourceRoot is not null && item.Target.Resolve().IsRelativeTo(sourceRoot))
+            {
+                throw new IOException("A merged destination would modify the source tree.");
             }
 
             var link = item.Source.LinkTarget;
@@ -37,6 +43,10 @@ public sealed partial class FilePath
             if (item.Source.IsDirectory)
             {
                 var resolved = item.Source.Resolve(true);
+                if (item.Target.Resolve().IsRelativeTo(resolved))
+                {
+                    throw new IOException("A destination is inside a followed source directory.");
+                }
                 if (!item.Ancestors.Add(resolved))
                 {
                     throw new IOException($"A directory link cycle was encountered at {item.Source}.");
@@ -61,7 +71,7 @@ public sealed partial class FilePath
             }
             else
             {
-                if (item.Target.Exists && item.Source.SameFile(item.Target))
+                if (item.Target.Resolve().Exists && item.Source.SameFile(item.Target))
                 {
                     throw new IOException("Source and destination refer to the same file.");
                 }
@@ -183,7 +193,7 @@ public sealed partial class FilePath
         var source = Resolve();
         var destination = target.Resolve();
         if (source == destination || (IsDirectory && destination.IsRelativeTo(source)) ||
-            (Exists && target.Exists && SameFile(target)))
+            (source.Exists && destination.Exists && source.SameFile(destination)))
         {
             throw new IOException("The destination is the source, an alias of it, or inside the source directory.");
         }

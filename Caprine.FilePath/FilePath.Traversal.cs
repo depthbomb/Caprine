@@ -79,21 +79,21 @@ public sealed partial class FilePath
     /// <param name="ct">Cancels traversal between entries.</param>
     /// <returns>Entries grouped by directory in pre-order, without sorting.</returns>
     public IEnumerable<FilePath> EnumerateEntries(PathTraversalOptions? options = null, CancellationToken ct = default) =>
-        Walk(options ?? new PathTraversalOptions { MaxDepth = 0 }, ct).SelectMany(static visit => visit.Directories.Concat(visit.Files));
+        EnumerateWalkEntries(options, ct, null);
 
     /// <summary>Lazily enumerates non-directory entries, including dangling links.</summary>
     /// <param name="options">Null enumerates immediate files only.</param>
     /// <param name="ct">Cancels traversal between entries.</param>
     /// <returns>File paths in filesystem order.</returns>
     public IEnumerable<FilePath> EnumerateFiles(PathTraversalOptions? options = null, CancellationToken ct = default) =>
-        Walk(options ?? new PathTraversalOptions { MaxDepth = 0 }, ct).SelectMany(static visit => visit.Files);
+        EnumerateWalkEntries(options, ct, false);
 
     /// <summary>Lazily enumerates child directories, including directory links.</summary>
     /// <param name="options">Null enumerates immediate directories only.</param>
     /// <param name="ct">Cancels traversal between entries.</param>
     /// <returns>Directory paths in filesystem order.</returns>
     public IEnumerable<FilePath> EnumerateDirectories(PathTraversalOptions? options = null, CancellationToken ct = default) =>
-        Walk(options ?? new PathTraversalOptions { MaxDepth = 0 }, ct).SelectMany(static visit => visit.Directories);
+        EnumerateWalkEntries(options, ct, true);
 
     /// <summary>Lazily walks directories in pre-order, taking one immediate-child snapshot per visited directory.</summary>
     /// <param name="options">Depth, link, hidden-entry, error, and pruning options. Null uses defaults.</param>
@@ -107,7 +107,7 @@ public sealed partial class FilePath
         options ??= new PathTraversalOptions();
         ArgumentOutOfRangeException.ThrowIfNegative(options.MaxDepth);
         ct.ThrowIfCancellationRequested();
-        if (!IsDirectory)
+        if (!CanTraverse(options.IgnoreInaccessible))
         {
             yield break;
         }
@@ -167,6 +167,44 @@ public sealed partial class FilePath
 
                 pending.Push((child, item.Depth + 1));
             }
+        }
+    }
+
+    private IEnumerable<FilePath> EnumerateWalkEntries(PathTraversalOptions? options, CancellationToken ct, bool? directoriesOnly)
+    {
+        foreach (var visit in Walk(options ?? new PathTraversalOptions { MaxDepth = 0 }, ct))
+        {
+            var entries = directoriesOnly switch
+            {
+                true => visit.Directories.AsEnumerable(),
+                false => visit.Files.AsEnumerable(),
+                null => visit.Directories.Concat(visit.Files)
+            };
+            foreach (var entry in entries)
+            {
+                ct.ThrowIfCancellationRequested();
+                yield return entry;
+            }
+        }
+    }
+
+    private bool CanTraverse(bool ignoreInaccessible)
+    {
+        try
+        {
+            return (File.GetAttributes(_path) & FileAttributes.Directory) != 0;
+        }
+        catch (FileNotFoundException)
+        {
+            return false;
+        }
+        catch (DirectoryNotFoundException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException) when (ignoreInaccessible)
+        {
+            return false;
         }
     }
 }
