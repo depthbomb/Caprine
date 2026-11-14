@@ -21,7 +21,7 @@ public class PurePath : IEquatable<PurePath>, IComparable<PurePath>
     /// <summary>Gets whether the path has a drive or root.</summary>
     public bool IsRooted => Anchor.Length > 0;
     /// <summary>Gets immutable components, including the anchor as the first component when present.</summary>
-    public ImmutableArray<string> Parts => Anchor.Length == 0 ? _syntax.Segments : [Anchor, .. _syntax.Segments];
+    public ImmutableArray<string> Parts => field.IsDefault ? field = Anchor.Length == 0 ? _syntax.Segments : [Anchor, .. _syntax.Segments] : field;
     /// <summary>Gets the final component, or an empty string for a root or current-directory path.</summary>
     public string Name => _syntax.Segments.IsEmpty ? "" : _syntax.Segments[^1];
     /// <summary>Gets the final suffix. A leading dot alone does not introduce a suffix.</summary>
@@ -29,10 +29,15 @@ public class PurePath : IEquatable<PurePath>, IComparable<PurePath>
     {
         get
         {
+            if (field is not null)
+            {
+                return field;
+            }
+
             var name = Name.TrimStart('.');
             var dot = name.LastIndexOf('.');
 
-            return dot < 0 ? "" : name[dot..];
+            return field = dot < 0 ? "" : name[dot..];
         }
     }
     /// <summary>Gets all suffixes in their original order.</summary>
@@ -40,13 +45,18 @@ public class PurePath : IEquatable<PurePath>, IComparable<PurePath>
     {
         get
         {
+            if (!field.IsDefault)
+            {
+                return field;
+            }
+
             var name = Name.TrimStart('.');
             var pieces = name.Split('.');
-            return [.. pieces.Skip(1).Select(static piece => "." + piece)];
+            return field = [.. pieces.Skip(1).Select(static piece => "." + piece)];
         }
     }
     /// <summary>Gets the final component without its final suffix.</summary>
-    public string Stem => Name[..(Name.Length - Suffix.Length)];
+    public string Stem => field ??= Name[..(Name.Length - Suffix.Length)];
     /// <summary>Gets the lexical parent. A root or current-directory path is its own parent.</summary>
     public PurePath Parent => _syntax.Segments.IsEmpty ? this : Create(PathSyntax.Compose(Drive, Root, _syntax.Segments.RemoveAt(_syntax.Segments.Length - 1), _syntax.Separator));
     /// <summary>Gets proper ancestors, nearest first, stopping at the root or current directory.</summary>
@@ -62,6 +72,8 @@ public class PurePath : IEquatable<PurePath>, IComparable<PurePath>
             }
         }
     }
+
+    internal PathSyntax Syntax => _syntax;
 
     private readonly PathSyntax _syntax;
 
@@ -243,13 +255,13 @@ public class PurePath : IEquatable<PurePath>, IComparable<PurePath>
     /// <param name="pattern">A nonempty glob with *, ?, and bracket classes.</param>
     /// <param name="caseSensitive">Null uses this flavor's case rules.</param>
     /// <returns>Whether the path matches without filesystem access.</returns>
-    public bool Match(string pattern, bool? caseSensitive = null) => new GlobPattern(pattern, Flavor, caseSensitive).Matches(Value, false);
+    public bool Match(string pattern, bool? caseSensitive = null) => new GlobPattern(pattern, Flavor, caseSensitive).Matches(_syntax, false);
 
     /// <summary>Matches the entire path. ** consumes zero or more complete components.</summary>
     /// <param name="pattern">A nonempty glob, anchored when matching an anchored path.</param>
     /// <param name="caseSensitive">Null uses this flavor's case rules.</param>
     /// <returns>Whether all components match without filesystem access.</returns>
-    public bool FullMatch(string pattern, bool? caseSensitive = null) => new GlobPattern(pattern, Flavor, caseSensitive).Matches(Value, true);
+    public bool FullMatch(string pattern, bool? caseSensitive = null) => new GlobPattern(pattern, Flavor, caseSensitive).Matches(_syntax, true);
 
     /// <summary>Compares path values using their flavor's rules.</summary>
     /// <param name="left">The first path, possibly null.</param>

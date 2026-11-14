@@ -141,5 +141,31 @@ public sealed class PurePathTests
         Assert.False(FilePath.TryParse(null, out _));
     }
 
+    [Fact]
+    public void CachedComponentsRemainCorrectDuringConcurrentReads()
+    {
+        var path = new WindowsPath(@"C:\alpha\archive.tar.gz");
+        Parallel.For(0, 1000, _ =>
+        {
+            Assert.Equal<string>([@"C:\", "alpha", "archive.tar.gz"], path.Parts);
+            Assert.Equal<string>([".tar", ".gz"], path.Suffixes);
+            Assert.Equal(".gz", path.Suffix);
+            Assert.Equal("archive.tar", path.Stem);
+        });
+    }
+
+    [Fact]
+    public void SimpleGlobMatchingAgreesWithTheBclForGeneratedCases()
+    {
+        var random = new Random(4182);
+        for (var i = 0; i < 5000; i++)
+        {
+            var text = new string(Enumerable.Range(0, random.Next(1, 18)).Select(_ => "abc"[random.Next(3)]).ToArray());
+            var pattern = new string(Enumerable.Range(0, random.Next(1, 12)).Select(_ => "abc*?"[random.Next(5)]).ToArray());
+            var expected = System.IO.Enumeration.FileSystemName.MatchesSimpleExpression(pattern, text, ignoreCase: false);
+            Assert.Equal(expected, new PosixPath(text).FullMatch(pattern));
+        }
+    }
+
     private static T Parse<T>(string value) where T : IParsable<T> => T.Parse(value, null);
 }

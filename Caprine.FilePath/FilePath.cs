@@ -24,9 +24,9 @@ public sealed partial class FilePath : IEquatable<FilePath>, IComparable<FilePat
     /// <summary>Gets the complete drive and root.</summary>
     public string Anchor => _pure.Anchor;
     /// <summary>Gets the lexical parent. Roots and the current-directory path are their own parents.</summary>
-    public FilePath Parent => new FilePath(_pure.Parent.Value);
+    public FilePath Parent => new FilePath(_pure.Parent);
     /// <summary>Gets proper ancestors, nearest first, stopping at the root or current directory.</summary>
-    public IEnumerable<FilePath> Parents => _pure.Parents.Select(static path => new FilePath(path.Value));
+    public IEnumerable<FilePath> Parents => _pure.Parents.Select(static path => new FilePath(path));
     /// <summary>Gets the final component, or an empty string for roots and the current-directory path.</summary>
     public string Name => _pure.Name;
     /// <summary>Gets the final component without its last suffix.</summary>
@@ -68,6 +68,12 @@ public sealed partial class FilePath : IEquatable<FilePath>, IComparable<FilePat
         _path = _pure.Value;
     }
 
+    private FilePath(PurePath pure)
+    {
+        _pure = pure;
+        _path = pure.Value;
+    }
+
     /// <inheritdoc />
     public override string ToString() => _path;
     /// <inheritdoc />
@@ -85,7 +91,7 @@ public sealed partial class FilePath : IEquatable<FilePath>, IComparable<FilePat
     /// <param name="others">Components to join; Windows rooted components retain the preceding drive.</param>
     /// <returns>The joined native path.</returns>
     /// <exception cref="ArgumentNullException">others or an element is null.</exception>
-    public FilePath JoinPath(params string[] others) => new FilePath(_pure.JoinPath(others).Value);
+    public FilePath JoinPath(params string[] others) => new FilePath(_pure.JoinPath(others));
     /// <summary>Joins native paths using the same rules as string segments.</summary>
     /// <param name="others">Paths to join in order; absolute paths replace preceding components.</param>
     /// <returns>The joined native path.</returns>
@@ -101,19 +107,19 @@ public sealed partial class FilePath : IEquatable<FilePath>, IComparable<FilePat
     /// <returns>A path with the same parent and the new filename.</returns>
     /// <exception cref="ArgumentException">newName is invalid.</exception>
     /// <exception cref="InvalidOperationException">This path has no filename.</exception>
-    public FilePath WithName(string newName) => new FilePath(_pure.WithName(newName).Value);
+    public FilePath WithName(string newName) => new FilePath(_pure.WithName(newName));
     /// <summary>Replaces the stem while retaining the final suffix.</summary>
     /// <param name="newStem">A nonempty stem that produces a valid filename.</param>
     /// <returns>A path with the new stem and the existing final suffix.</returns>
     /// <exception cref="ArgumentException">newStem is invalid.</exception>
     /// <exception cref="InvalidOperationException">This path has no filename.</exception>
-    public FilePath WithStem(string newStem) => new FilePath(_pure.WithStem(newStem).Value);
+    public FilePath WithStem(string newStem) => new FilePath(_pure.WithStem(newStem));
     /// <summary>Replaces or removes the final suffix.</summary>
     /// <param name="newSuffix">A dot-prefixed suffix, including "." alone, or empty text to remove the suffix.</param>
     /// <returns>A path with its final suffix replaced.</returns>
     /// <exception cref="ArgumentException">newSuffix has invalid syntax or filename characters.</exception>
     /// <exception cref="InvalidOperationException">This path has no filename.</exception>
-    public FilePath WithSuffix(string newSuffix) => new FilePath(_pure.WithSuffix(newSuffix).Value);
+    public FilePath WithSuffix(string newSuffix) => new FilePath(_pure.WithSuffix(newSuffix));
     /// <summary>Returns an absolute path, removing dot components without following symbolic links.</summary>
     /// <param name="basePath">An absolute base for relative paths; null uses the current working directory.</param>
     /// <returns>A fully qualified lexical path.</returns>
@@ -128,7 +134,7 @@ public sealed partial class FilePath : IEquatable<FilePath>, IComparable<FilePat
     public FilePath RelativeTo(FilePath other, bool walkUp = false)
     {
         ArgumentNullException.ThrowIfNull(other);
-        return new FilePath(_pure.RelativeTo(other._pure, walkUp).Value);
+        return new FilePath(_pure.RelativeTo(other._pure, walkUp));
     }
 
     /// <summary>Attempts a lexical relative conversion without accessing the filesystem.</summary>
@@ -140,7 +146,7 @@ public sealed partial class FilePath : IEquatable<FilePath>, IComparable<FilePat
     {
         ArgumentNullException.ThrowIfNull(other);
         var success = _pure.TryRelativeTo(other._pure, out var relative, walkUp);
-        result = success ? new FilePath(relative!.Value) : null;
+        result = success ? new FilePath(relative!) : null;
         return success;
     }
 

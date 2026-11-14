@@ -21,15 +21,23 @@ internal sealed class GlobPattern
         _caseSensitive = caseSensitive ?? _flavor != PathFlavor.Windows;
     }
 
-    internal bool Matches(string path, bool full)
+    internal bool Matches(PathSyntax syntax, bool full)
     {
-        var syntax = new PathSyntax(path, _flavor);
         if (_anchor.Length > 0 && !Equal(_anchor, syntax.Anchor))
         {
             return false;
         }
 
-        var parts = syntax.Segments;
+        if (full && _anchor.Length == 0 && syntax.Anchor.Length > 0)
+        {
+            return false;
+        }
+
+        return MatchesParts(syntax.Segments.AsSpan(), full);
+    }
+
+    internal bool MatchesParts(ReadOnlySpan<string> parts, bool full)
+    {
         if (!full)
         {
             if (parts.Length < _parts.Length || (_anchor.Length > 0 && parts.Length != _parts.Length))
@@ -48,16 +56,15 @@ internal sealed class GlobPattern
             return true;
         }
 
-        if (_anchor.Length == 0 && syntax.Anchor.Length > 0)
-        {
-            return false;
-        }
-
-        var previous = new bool[parts.Length + 1];
+        var length = parts.Length + 1;
+        Span<bool> buffers = length <= 128 ? stackalloc bool[length * 2] : new bool[length * 2];
+        buffers.Clear();
+        var previous = buffers[..length];
+        var next = buffers[length..];
         previous[0] = true;
         foreach (var pattern in _parts)
         {
-            var next = new bool[parts.Length + 1];
+            next.Clear();
             if (pattern == "**")
             {
                 next[0] = previous[0];
@@ -74,7 +81,9 @@ internal sealed class GlobPattern
                 }
             }
 
+            var swap = previous;
             previous = next;
+            next = swap;
         }
 
         return previous[parts.Length];
@@ -85,13 +94,27 @@ internal sealed class GlobPattern
 
     private bool MatchSegment(string text, string pattern)
     {
-        var previous = new bool[text.Length + 1];
+        if (pattern is "*" or "**")
+        {
+            return true;
+        }
+
+        if (pattern.AsSpan().IndexOfAny('*', '?', '[') < 0)
+        {
+            return Equal(text, pattern);
+        }
+
+        var length = text.Length + 1;
+        Span<bool> buffers = length <= 256 ? stackalloc bool[length * 2] : new bool[length * 2];
+        buffers.Clear();
+        var previous = buffers[..length];
+        var next = buffers[length..];
         previous[0] = true;
         for (var p = 0; p < pattern.Length; p++)
         {
             var token = pattern[p];
             var end = token == '[' ? ClassEnd(pattern, p) : -1;
-            var next = new bool[text.Length + 1];
+            next.Clear();
             if (token == '*')
             {
                 next[0] = previous[0];
@@ -110,7 +133,9 @@ internal sealed class GlobPattern
                 }
             }
 
+            var swap = previous;
             previous = next;
+            next = swap;
             if (end > p)
             {
                 p = end;

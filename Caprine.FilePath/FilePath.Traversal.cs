@@ -38,7 +38,7 @@ public sealed partial class FilePath
         var depth = glob.Recursive ? options.MaxDepth : Math.Min(options.MaxDepth, Math.Max(0, glob.Depth - 1));
         foreach (var visit in Walk(options with { MaxDepth = depth }, ct))
         {
-            if (visit.Depth == 0 && glob.Matches(".", true))
+            if (visit.Depth == 0 && glob.MatchesParts([], true))
             {
                 yield return this;
             }
@@ -46,7 +46,7 @@ public sealed partial class FilePath
             foreach (var entry in visit.Directories.Concat(directoriesOnly ? [] : visit.Files))
             {
                 ct.ThrowIfCancellationRequested();
-                if (glob.Matches(entry.RelativeTo(this).Value, true))
+                if (glob.MatchesParts(entry._pure.Syntax.Segments.AsSpan(_pure.Syntax.Segments.Length..), true))
                 {
                     yield return entry;
                 }

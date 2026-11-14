@@ -31,19 +31,22 @@ internal sealed class PathSyntax
 
         var text = Flavor == PathFlavor.Windows ? path.Replace('/', '\\') : path;
         (Drive, Root, var start) = ReadAnchor(text, Flavor);
-        var segments = ImmutableArray.CreateBuilder<string>();
         var tail = text.AsSpan(start);
+        var segments = ImmutableArray.CreateBuilder<string>(tail.IsEmpty ? 0 : tail.Count(Separator) + 1);
+        var componentLength = 0;
         foreach (var range in tail.Split(Separator))
         {
             var segment = tail[range];
             if (!segment.IsEmpty && segment is not ".")
             {
                 segments.Add(segment.ToString());
+                componentLength += segment.Length;
             }
         }
 
-        Segments = segments.ToImmutable();
-        Value = Compose(Drive, Root, Segments, Separator);
+        Segments = segments.DrainToImmutable();
+        var normalizedLength = Drive.Length + Root.Length + componentLength + Math.Max(0, Segments.Length - 1);
+        Value = normalizedLength == text.Length && text.Length > 0 ? text : Compose(Drive, Root, Segments, Separator);
     }
 
     internal static string Compose(string drive, string root, IEnumerable<string> segments, char separator)
