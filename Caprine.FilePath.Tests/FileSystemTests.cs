@@ -355,7 +355,8 @@ public sealed class FileSystemTests
 
     private sealed class TestDirectory : IDisposable
     {
-        internal FilePath Path { get; } = new FilePath(Directory.CreateTempSubdirectory("Caprine-tests-").FullName);
+        // The system temporary directory can itself contain links, such as /var on macOS.
+        internal FilePath Path { get; } = new FilePath(Directory.CreateTempSubdirectory("Caprine-tests-").FullName).Resolve(true);
 
         public void Dispose() => Directory.Delete(Path.Value, true);
     }
