@@ -9,6 +9,7 @@ public sealed partial class FilePath
     /// <param name="prefix">A filename prefix without separators. Defaults to Caprine-.</param>
     /// <returns>The allocated path. The caller owns cleanup.</returns>
     /// <exception cref="IOException">Allocation fails.</exception>
+    /// <exception cref="UnauthorizedAccessException">The operating system denies the requested access.</exception>
     public static FilePath CreateTemporaryFile(FilePath? directory = null, string prefix = "Caprine-")
     {
         var (path, stream) = CreateTemporaryStream(directory ?? TempDir(), prefix, false);
@@ -19,6 +20,8 @@ public sealed partial class FilePath
     /// <summary>Creates a uniquely named directory in the system temporary directory.</summary>
     /// <param name="prefix">A filename prefix without separators. Defaults to Caprine-.</param>
     /// <returns>The allocated path. The caller owns recursive cleanup.</returns>
+    /// <exception cref="IOException">The filesystem operation fails. Missing entries can report FileNotFoundException or DirectoryNotFoundException.</exception>
+    /// <exception cref="UnauthorizedAccessException">The operating system denies the requested access.</exception>
     public static FilePath CreateTemporaryDirectory(string prefix = "Caprine-")
     {
         ValidateTemporaryPrefix(prefix);
@@ -30,6 +33,7 @@ public sealed partial class FilePath
     /// <param name="flushToDisk">Whether to flush file data to disk before replacement. Defaults to false.</param>
     /// <remarks>Parents must exist. A destination link is replaced, not followed. Existing metadata is not preserved. Rename atomicity depends on the filesystem; directory-entry durability after power loss is not guaranteed.</remarks>
     /// <exception cref="IOException">Writing or replacement fails. The old destination remains intact until rename succeeds.</exception>
+    /// <exception cref="UnauthorizedAccessException">The operating system denies the requested access.</exception>
     public void WriteBytesAtomic(ReadOnlySpan<byte> data, bool flushToDisk = false)
     {
         var (temporary, stream) = CreateTemporaryStream(Parent, ".caprine-", false);
@@ -55,6 +59,8 @@ public sealed partial class FilePath
     /// <param name="encoding">Null uses UTF-8 without a BOM.</param>
     /// <param name="flushToDisk">Whether to flush file data to disk before replacement.</param>
     /// <remarks>Uses the same replacement, metadata, and durability rules as WriteBytesAtomic.</remarks>
+    /// <exception cref="IOException">The filesystem operation fails. Missing entries can report FileNotFoundException or DirectoryNotFoundException.</exception>
+    /// <exception cref="UnauthorizedAccessException">The operating system denies the requested access.</exception>
     public void WriteTextAtomic(string content, Encoding? encoding = null, bool flushToDisk = false)
     {
         ArgumentNullException.ThrowIfNull(content);
@@ -86,6 +92,9 @@ public sealed partial class FilePath
     /// <param name="ct">Cancels writing or stops before rename. Cancellation arriving after rename begins cannot undo replacement.</param>
     /// <returns>A task completing after replacement and temporary-file cleanup.</returns>
     /// <remarks>Uses the same replacement and durability rules as WriteBytesAtomic.</remarks>
+    /// <exception cref="IOException">The filesystem operation fails. Missing entries can report FileNotFoundException or DirectoryNotFoundException.</exception>
+    /// <exception cref="UnauthorizedAccessException">The operating system denies the requested access.</exception>
+    /// <exception cref="OperationCanceledException">ct requests cancellation. Asynchronous methods report cancellation through their task or enumeration.</exception>
     public async Task WriteBytesAtomicAsync(ReadOnlyMemory<byte> data, bool flushToDisk = false, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
@@ -119,6 +128,9 @@ public sealed partial class FilePath
     /// <param name="ct">Cancels writing or stops before rename.</param>
     /// <returns>A task completing after replacement and temporary-file cleanup.</returns>
     /// <remarks>Uses the same replacement and durability rules as WriteBytesAtomic.</remarks>
+    /// <exception cref="IOException">The filesystem operation fails. Missing entries can report FileNotFoundException or DirectoryNotFoundException.</exception>
+    /// <exception cref="UnauthorizedAccessException">The operating system denies the requested access.</exception>
+    /// <exception cref="OperationCanceledException">ct requests cancellation. Asynchronous methods report cancellation through their task or enumeration.</exception>
     public async Task WriteTextAtomicAsync(string content, Encoding? encoding = null, bool flushToDisk = false, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(content);

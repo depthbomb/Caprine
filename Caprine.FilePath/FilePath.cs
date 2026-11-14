@@ -6,6 +6,7 @@ namespace Caprine.FilePath;
 
 /// <summary>An immutable native path with convenient filesystem operations.</summary>
 /// <remarks>Lexical operations do not access the filesystem. Relative paths use the working directory when an I/O operation runs.</remarks>
+/// <remarks>Values normalize separators and "." but retain "..". Equality and hashing use ordinal case-insensitive rules on Windows and ordinal case-sensitive rules elsewhere, independent of actual volume case behavior.</remarks>
 [DebuggerDisplay("{Value}")]
 [System.Text.Json.Serialization.JsonConverter(typeof(FilePathJsonConverter))]
 public sealed partial class FilePath : IEquatable<FilePath>, IComparable<FilePath>, ISpanParsable<FilePath>
@@ -191,11 +192,24 @@ public sealed partial class FilePath : IEquatable<FilePath>, IComparable<FilePat
         var path = Environment.GetFolderPath(specialFolder);
         return path.Length > 0 ? new FilePath(path) : throw new DirectoryNotFoundException($"The special folder {specialFolder} has no path on this system.");
     }
-    /// <inheritdoc />
+    /// <summary>Creates a lexical native path from text without checking existence.</summary>
+    /// <param name="s">Path text; empty means ".".</param>
+    /// <param name="provider">Ignored; paths do not use culture-specific parsing.</param>
+    /// <returns>A normalized native path.</returns>
+    /// <exception cref="ArgumentNullException">s is null.</exception>
+    /// <exception cref="ArgumentException">s contains a null character.</exception>
     public static FilePath Parse(string s, IFormatProvider? provider = null) => new FilePath(s);
-    /// <inheritdoc />
+    /// <summary>Creates a lexical native path from a character span without checking existence.</summary>
+    /// <param name="s">Path characters; an empty span means ".".</param>
+    /// <param name="provider">Ignored; paths do not use culture-specific parsing.</param>
+    /// <returns>A normalized native path.</returns>
+    /// <exception cref="ArgumentException">s contains a null character.</exception>
     public static FilePath Parse(ReadOnlySpan<char> s, IFormatProvider? provider = null) => new FilePath(s.ToString());
-    /// <inheritdoc />
+    /// <summary>Attempts lexical parsing without checking existence or OS-specific filename restrictions.</summary>
+    /// <param name="s">Path text; empty is valid, while null and embedded null characters are invalid.</param>
+    /// <param name="provider">Ignored; parsing is culture-independent.</param>
+    /// <param name="result">The normalized path on success, otherwise null.</param>
+    /// <returns>Whether parsing succeeded.</returns>
     public static bool TryParse([NotNullWhen(true)] string? s, IFormatProvider? provider, [NotNullWhen(true)] out FilePath? result)
     {
         if (s is null || s.Contains('\0'))
@@ -207,7 +221,11 @@ public sealed partial class FilePath : IEquatable<FilePath>, IComparable<FilePat
         result = new FilePath(s);
         return true;
     }
-    /// <inheritdoc />
+    /// <summary>Attempts lexical parsing of a character span without checking existence.</summary>
+    /// <param name="s">Path characters; an empty span is valid and embedded null characters are invalid.</param>
+    /// <param name="provider">Ignored; parsing is culture-independent.</param>
+    /// <param name="result">The normalized path on success, otherwise null.</param>
+    /// <returns>Whether parsing succeeded.</returns>
     public static bool TryParse(ReadOnlySpan<char> s, IFormatProvider? provider, [NotNullWhen(true)] out FilePath? result) => TryParse(s.ToString(), provider, out result);
     /// <summary>Attempts to create a native path from text.</summary>
     /// <param name="s">Path text; empty is valid, null and embedded null characters are invalid.</param>

@@ -4,6 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 namespace Caprine.FilePath;
 
 /// <summary>An immutable path value whose operations never access the filesystem.</summary>
+/// <remarks>Equality includes the path flavor and normalized text. Windows values ignore case using ordinal rules; POSIX values compare case-sensitively. Parent components are retained. Derived result values preserve their runtime flavor.</remarks>
 public class PurePath : IEquatable<PurePath>, IComparable<PurePath>
 {
     /// <summary>Gets the normalized path text, retaining parent components.</summary>

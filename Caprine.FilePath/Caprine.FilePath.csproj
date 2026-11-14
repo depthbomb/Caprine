@@ -14,6 +14,7 @@
         <FileVersion>0.2.0</FileVersion>
         <NeutralLanguage>en-US</NeutralLanguage>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <WarningsAsErrors>$(WarningsAsErrors);CS1591;CS1570;CS1572;CS1573;CS1587</WarningsAsErrors>
         <IncludeSymbols>true</IncludeSymbols>
         <SymbolPackageFormat>snupkg</SymbolPackageFormat>
         <Deterministic>true</Deterministic>

@@ -9,8 +9,8 @@ public sealed class TemporaryPath : IDisposable
     /// <summary>Gets whether this owner allocated a directory.</summary>
     public bool IsDirectory { get; }
 
-    private readonly (ulong Device, ulong Low, ulong High) _identity;
     private bool _disposed;
+    private readonly (ulong Device, ulong Low, ulong High) _identity;
 
     private TemporaryPath(FilePath path, bool isDirectory)
     {

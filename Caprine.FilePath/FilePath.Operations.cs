@@ -9,6 +9,8 @@ public sealed partial class FilePath
     /// <returns>The destination path.</returns>
     /// <remarks>Existing destination directory links are rejected during merges. Recursive copies reject destinations inside the source. Filesystem races can invalidate these checks.</remarks>
     /// <exception cref="IOException">A destination conflicts, a cycle is encountered, or copying fails.</exception>
+    /// <exception cref="UnauthorizedAccessException">The operating system denies the requested access.</exception>
+    /// <exception cref="OperationCanceledException">ct requests cancellation. Asynchronous methods report cancellation through their task or enumeration.</exception>
     public FilePath CopyTo(FilePath target, PathCopyOptions? options = null, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(target);
@@ -94,6 +96,9 @@ public sealed partial class FilePath
     /// <param name="ct">Cancels between entries.</param>
     /// <returns>The destination directory joined with this entry's filename.</returns>
     /// <exception cref="DirectoryNotFoundException">The destination directory does not exist.</exception>
+    /// <exception cref="IOException">The filesystem operation fails. Missing entries can report FileNotFoundException or DirectoryNotFoundException.</exception>
+    /// <exception cref="UnauthorizedAccessException">The operating system denies the requested access.</exception>
+    /// <exception cref="OperationCanceledException">ct requests cancellation. Asynchronous methods report cancellation through their task or enumeration.</exception>
     public FilePath CopyInto(FilePath directory, PathCopyOptions? options = null, CancellationToken ct = default) =>
         CopyTo(IntoTarget(directory), options, ct);
 
@@ -104,6 +109,7 @@ public sealed partial class FilePath
     /// <returns>The destination path.</returns>
     /// <remarks>File moves use BCL behavior, including copy/delete across volumes. Directory fallback is non-atomic and can leave a partial destination on failure. Links are moved as entries.</remarks>
     /// <exception cref="IOException">A destination conflicts or the move fails.</exception>
+    /// <exception cref="UnauthorizedAccessException">The operating system denies the requested access.</exception>
     public FilePath MoveTo(FilePath target, bool overwrite = false, bool copyDirectoryOnFailure = false)
     {
         ArgumentNullException.ThrowIfNull(target);
@@ -138,17 +144,23 @@ public sealed partial class FilePath
     /// <param name="overwrite">Whether an existing file may be replaced.</param>
     /// <param name="copyDirectoryOnFailure">Whether to allow non-atomic directory copy/delete fallback.</param>
     /// <returns>The destination directory joined with this entry's filename.</returns>
+    /// <exception cref="IOException">The filesystem operation fails. Missing entries can report FileNotFoundException or DirectoryNotFoundException.</exception>
+    /// <exception cref="UnauthorizedAccessException">The operating system denies the requested access.</exception>
     public FilePath MoveInto(FilePath directory, bool overwrite = false, bool copyDirectoryOnFailure = false) =>
         MoveTo(IntoTarget(directory), overwrite, copyDirectoryOnFailure);
 
     /// <summary>Moves an entry to an exact destination without replacing an existing entry.</summary>
     /// <param name="target">The exact destination.</param>
     /// <returns>The destination path.</returns>
+    /// <exception cref="IOException">The filesystem operation fails. Missing entries can report FileNotFoundException or DirectoryNotFoundException.</exception>
+    /// <exception cref="UnauthorizedAccessException">The operating system denies the requested access.</exception>
     public FilePath Rename(FilePath target) => MoveTo(target);
 
     /// <summary>Moves an entry to an exact destination without replacing an existing entry.</summary>
     /// <param name="target">The exact destination text.</param>
     /// <returns>The destination path.</returns>
+    /// <exception cref="IOException">The filesystem operation fails. Missing entries can report FileNotFoundException or DirectoryNotFoundException.</exception>
+    /// <exception cref="UnauthorizedAccessException">The operating system denies the requested access.</exception>
     public FilePath Rename(string target) => MoveTo(new FilePath(target));
 
     /// <summary>Moves a file to an exact destination, replacing an existing file.</summary>
@@ -156,6 +168,7 @@ public sealed partial class FilePath
     /// <returns>The destination path.</returns>
     /// <remarks>Directory replacement is deliberately unsupported on every platform. Use MoveTo for directory moves.</remarks>
     /// <exception cref="IOException">Either entry is a directory or the replacement fails.</exception>
+    /// <exception cref="UnauthorizedAccessException">The operating system denies the requested access.</exception>
     public FilePath Replace(FilePath target)
     {
         ArgumentNullException.ThrowIfNull(target);
@@ -170,6 +183,8 @@ public sealed partial class FilePath
     /// <summary>Moves a file to an exact destination, replacing an existing file.</summary>
     /// <param name="target">The exact destination text.</param>
     /// <returns>The destination path.</returns>
+    /// <exception cref="IOException">The filesystem operation fails. Missing entries can report FileNotFoundException or DirectoryNotFoundException.</exception>
+    /// <exception cref="UnauthorizedAccessException">The operating system denies the requested access.</exception>
     public FilePath Replace(string target) => Replace(new FilePath(target));
 
     private FilePath IntoTarget(FilePath directory)

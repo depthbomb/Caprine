@@ -13,6 +13,7 @@ public sealed partial class FilePath
     /// <summary>Reads the immediate target of a symbolic link.</summary>
     /// <returns>The target as a native path, retaining relative targets.</returns>
     /// <exception cref="IOException">This entry is not a symbolic link.</exception>
+    /// <exception cref="UnauthorizedAccessException">The operating system denies the requested access.</exception>
     public FilePath ReadLink() => new FilePath(LinkTarget ?? throw new IOException($"The path is not a symbolic link: {_path}"));
 
     /// <summary>Creates a symbolic link at this path.</summary>
@@ -41,6 +42,7 @@ public sealed partial class FilePath
     /// <returns>This new link's path.</returns>
     /// <remarks>Uses the .NET 11 hard-link API when available. Changes through either name affect the same file.</remarks>
     /// <exception cref="IOException">Creation fails, the destination exists, or the filesystems differ.</exception>
+    /// <exception cref="UnauthorizedAccessException">The operating system denies the requested access.</exception>
     public FilePath CreateHardLink(FilePath target)
     {
         ArgumentNullException.ThrowIfNull(target);
@@ -132,6 +134,7 @@ public sealed partial class FilePath
     /// <remarks>Supported on Windows, Linux with statx, and macOS. Concurrent replacement can change identity between calls.</remarks>
     /// <exception cref="IOException">An entry is missing or its identity cannot be read.</exception>
     /// <exception cref="PlatformNotSupportedException">The platform does not provide a supported identity API.</exception>
+    /// <exception cref="UnauthorizedAccessException">The operating system denies the requested access.</exception>
     public bool SameFile(FilePath other)
     {
         ArgumentNullException.ThrowIfNull(other);
