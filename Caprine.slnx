@@ -1,4 +1,7 @@
 <Solution>
-  <Project Path="Caprine.FilePath/Caprine.FilePath.csproj" />
-  <Project Path="Caprine.FilePath.Tests/Caprine.FilePath.Tests.csproj" />
+    <Project Path="Caprine.CronTimer/Caprine.CronTimer.csproj"/>
+    <Project Path="Caprine.CronTimer.Generators/Caprine.CronTimer.Generators.csproj"/>
+    <Project Path="Caprine.CronTimer.Tests/Caprine.CronTimer.Tests.csproj"/>
+    <Project Path="Caprine.FilePath/Caprine.FilePath.csproj"/>
+    <Project Path="Caprine.FilePath.Tests/Caprine.FilePath.Tests.csproj"/>
 </Solution>

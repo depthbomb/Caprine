@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>netstandard2.0</TargetFramework>
+        <LangVersion>15</LangVersion>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <IsPackable>false</IsPackable>
+        <Version>0.1.0</Version>
+        <IsRoslynComponent>true</IsRoslynComponent>
+        <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+        <Deterministic>true</Deterministic>
+        <DefineConstants>$(DefineConstants);CRON_GENERATOR</DefineConstants>
+    </PropertyGroup>
+    <ItemGroup>
+        <AdditionalFiles Include="AnalyzerReleases.Shipped.md"/>
+        <AdditionalFiles Include="AnalyzerReleases.Unshipped.md"/>
+        <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.12.0" PrivateAssets="all"/>
+        <Compile Include="../Caprine.CronTimer/CronExpressionOptions.cs" Link="Shared/CronExpressionOptions.cs"/>
+        <Compile Include="../Caprine.CronTimer/CronExpressionData.cs" Link="Shared/CronExpressionData.cs"/>
+        <Compile Include="../Caprine.CronTimer/CronExpressionData.Parsing.cs" Link="Shared/CronExpressionData.Parsing.cs"/>
+        <Compile Include="../Caprine.CronTimer/CronExpressionData.Encoding.cs" Link="Shared/CronExpressionData.Encoding.cs"/>
+    </ItemGroup>
+</Project>
