@@ -1,6 +1,6 @@
+using Microsoft.Win32.SafeHandles;
 using System.ComponentModel;
 using System.Runtime.InteropServices;
-using Microsoft.Win32.SafeHandles;
 
 namespace Caprine.FilePath;
 
@@ -11,7 +11,7 @@ internal static partial class FileIdentity
         if (OperatingSystem.IsWindows())
         {
             using var handle = CreateFile(path, 0, 7, 0, 3, 0x02000000, 0);
-            var info = new WindowsIdentity();
+            var       info   = new WindowsIdentity();
             if (handle.IsInvalid || !GetFileInformationByHandleEx(handle, 18, out info, 24))
             {
                 ThrowError(path);
@@ -32,7 +32,7 @@ internal static partial class FileIdentity
                 throw new PlatformNotSupportedException("The filesystem does not expose inode identities.");
             }
 
-            return (((ulong)info.DeviceMajor << 32) | info.DeviceMinor, info.Inode, 0);
+            return ((ulong)info.DeviceMajor << 32 | info.DeviceMinor, info.Inode, 0);
         }
 
         if (OperatingSystem.IsMacOS())
@@ -66,31 +66,6 @@ internal static partial class FileIdentity
         throw new IOException($"Cannot access filesystem identity or create link for '{path}': {new Win32Exception(error).Message}", new Win32Exception(error));
     }
 
-    // Native ABI layouts: FILE_ID_INFO, Linux UAPI statx, and Darwin stat64.
-    [StructLayout(LayoutKind.Sequential)]
-    private struct WindowsIdentity
-    {
-        internal ulong Volume;
-        internal ulong Low;
-        internal ulong High;
-    }
-
-    [StructLayout(LayoutKind.Explicit, Size = 256)]
-    private struct LinuxStat
-    {
-        [FieldOffset(0)] internal uint Mask;
-        [FieldOffset(32)] internal ulong Inode;
-        [FieldOffset(136)] internal uint DeviceMajor;
-        [FieldOffset(140)] internal uint DeviceMinor;
-    }
-
-    [StructLayout(LayoutKind.Explicit, Size = 144)]
-    private struct DarwinStat
-    {
-        [FieldOffset(0)] internal uint Device;
-        [FieldOffset(8)] internal ulong Inode;
-    }
-
     [LibraryImport("kernel32.dll", EntryPoint = "CreateFileW", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
     private static partial SafeFileHandle CreateFile(string path, uint access, uint share, nint security, uint disposition, uint flags, nint template);
 
@@ -113,4 +88,29 @@ internal static partial class FileIdentity
 
     [LibraryImport("libc", EntryPoint = "link", SetLastError = true, StringMarshalling = StringMarshalling.Utf8)]
     private static partial int UnixLink(string target, string path);
+
+    // Native ABI layouts: FILE_ID_INFO, Linux UAPI statx, and Darwin stat64.
+    [StructLayout(LayoutKind.Sequential)]
+    private struct WindowsIdentity
+    {
+        internal ulong Volume;
+        internal ulong Low;
+        internal ulong High;
+    }
+
+    [StructLayout(LayoutKind.Explicit, Size = 256)]
+    private struct LinuxStat
+    {
+        [FieldOffset(0)]   internal uint  Mask;
+        [FieldOffset(32)]  internal ulong Inode;
+        [FieldOffset(136)] internal uint  DeviceMajor;
+        [FieldOffset(140)] internal uint  DeviceMinor;
+    }
+
+    [StructLayout(LayoutKind.Explicit, Size = 144)]
+    private struct DarwinStat
+    {
+        [FieldOffset(0)] internal uint  Device;
+        [FieldOffset(8)] internal ulong Inode;
+    }
 }

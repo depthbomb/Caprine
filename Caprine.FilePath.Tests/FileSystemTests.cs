@@ -32,15 +32,15 @@ public sealed class FileSystemTests
     {
         Assert.True(new WindowsPath("A.TXT").FullMatch("a.txt"));
         Assert.False(new PosixPath("A.TXT").FullMatch("a.txt"));
-        Assert.True(new PosixPath("A.TXT").FullMatch("a.txt", caseSensitive: false));
-        Assert.False(new WindowsPath("A.TXT").FullMatch("a.txt", caseSensitive: true));
+        Assert.True(new PosixPath("A.TXT").FullMatch("a.txt", false));
+        Assert.False(new WindowsPath("A.TXT").FullMatch("a.txt", true));
     }
 
     [Fact]
     public void GlobTraversesSubdirectoryPatternsAndNeverSearchesAReceiversParent()
     {
         using var fixture = new TestDirectory();
-        var root = fixture.Path;
+        var       root    = fixture.Path;
         (root / "top.txt").WriteText("top");
         (root / "sub").Mkdir();
         (root / "sub" / "deep.txt").WriteText("deep");
@@ -59,8 +59,8 @@ public sealed class FileSystemTests
     public void WalkSupportsPruningHiddenEntriesDepthAndCancellation()
     {
         using var fixture = new TestDirectory();
-        var root = fixture.Path;
-        (root / "keep" / "nested").Mkdir(parents: true);
+        var       root    = fixture.Path;
+        (root / "keep" / "nested").Mkdir(true);
         (root / "skip").Mkdir();
         (root / ".hidden").Mkdir();
         (root / "keep" / "a").Touch();
@@ -79,16 +79,16 @@ public sealed class FileSystemTests
     public void ResolveFollowsIntermediateLinksBeforeParentComponents()
     {
         using var fixture = new TestDirectory();
-        var root = fixture.Path;
-        (root / "actual" / "nested").Mkdir(parents: true);
+        var       root    = fixture.Path;
+        (root / "actual" / "nested").Mkdir(true);
         (root / "actual" / "marker").Touch();
-        (root / "link").CreateSymbolicLink("actual/nested", isDirectory: true);
-        Assert.Equal((root / "actual" / "marker").Absolute(), (root / "link" / ".." / "marker").Resolve(true));
+        (root / "link").CreateSymbolicLink("actual/nested", true);
+        Assert.Equal((root / "actual" / "marker").Absolute(), (root  / "link" / ".." / "marker").Resolve(true));
         Assert.Equal((root / "actual" / "missing").Absolute(), (root / "link" / ".." / "missing").Resolve());
         Assert.Throws<FileNotFoundException>(() => (root / "link" / ".." / "missing").Resolve(true));
         Assert.Equal(new FilePath("actual/nested"), (root / "link").ReadLink());
-        Assert.True((root / "link").IsSymbolicLink);
-        Assert.False((root / "absent").IsSymbolicLink);
+        Assert.True((root                                 / "link").IsSymbolicLink);
+        Assert.False((root                                / "absent").IsSymbolicLink);
         Assert.Throws<IOException>(() => (root / "actual" / "marker" / "child").Resolve());
     }
 
@@ -96,7 +96,7 @@ public sealed class FileSystemTests
     public void DanglingLinksCanBeInspectedCopiedAndRemoved()
     {
         using var fixture = new TestDirectory();
-        var link = fixture.Path / "dangling";
+        var       link    = fixture.Path / "dangling";
         link.CreateSymbolicLink("missing");
         Assert.True(link.IsSymbolicLink);
         Assert.Equal("missing", link.LinkTarget);
@@ -106,16 +106,16 @@ public sealed class FileSystemTests
         Assert.Throws<FileNotFoundException>(() => link.Resolve(true));
         link.Unlink();
         Assert.False(link.IsSymbolicLink);
-        link.Unlink(missingOk: true);
+        link.Unlink(true);
     }
 
     [Fact]
     public void LinkLoopsFailResolutionAndDoNotLoopDuringTraversal()
     {
         using var fixture = new TestDirectory();
-        var root = fixture.Path;
+        var       root    = fixture.Path;
         (root / "dir").Mkdir();
-        (root / "dir" / "back").CreateSymbolicLink(root, isDirectory: true);
+        (root / "dir" / "back").CreateSymbolicLink(root, true);
         Assert.Equal(2, root.Walk().Count());
         Assert.Equal(2, root.Walk(new PathTraversalOptions { FollowSymbolicLinks = true }).Count());
         (root / "a").CreateSymbolicLink("b");
@@ -127,9 +127,9 @@ public sealed class FileSystemTests
     public void SameFileRecognizesHardLinksAndDirectories()
     {
         using var fixture = new TestDirectory();
-        var file = fixture.Path / "source";
+        var       file    = fixture.Path / "source";
         file.WriteText("one");
-        var hard = (fixture.Path / "hard").CreateHardLink(file);
+        var hard  = (fixture.Path / "hard").CreateHardLink(file);
         var other = fixture.Path / "other";
         other.WriteText("one");
         Assert.True(file.SameFile(hard));
@@ -145,13 +145,13 @@ public sealed class FileSystemTests
     public void TouchDoesNotCreateParentsOrTruncateFiles()
     {
         using var fixture = new TestDirectory();
-        var file = fixture.Path / "sub" / "file";
+        var       file    = fixture.Path / "sub" / "file";
         Assert.Throws<DirectoryNotFoundException>(() => file.Touch());
         file.Touch(parents: true);
         file.WriteText("keep");
         file.Touch();
         Assert.Equal("keep", file.ReadText());
-        Assert.Throws<IOException>(() => file.Touch(existOk: false));
+        Assert.Throws<IOException>(() => file.Touch(false));
         Assert.Equal("keep", file.ReadText());
     }
 
@@ -159,7 +159,7 @@ public sealed class FileSystemTests
     public void StatIsAnImmutableSnapshotAndReportsMissingFiles()
     {
         using var fixture = new TestDirectory();
-        var file = fixture.Path / "file";
+        var       file    = fixture.Path / "file";
         file.WriteText("old");
         var before = file.Stat();
         file.WriteText("longer");
@@ -175,7 +175,7 @@ public sealed class FileSystemTests
     public async Task TextUsesNoBomByDefaultAndSupportsStreaming()
     {
         using var fixture = new TestDirectory();
-        var file = fixture.Path / "file";
+        var       file    = fixture.Path / "file";
         file.WriteText("café");
         Assert.Equal(Encoding.UTF8.GetBytes("café"), file.ReadBytes());
         file.WriteText("bom", new UTF8Encoding(true));
@@ -203,8 +203,8 @@ public sealed class FileSystemTests
     public void CopyAndMoveUseExactDestinationsAndExplicitMerges()
     {
         using var fixture = new TestDirectory();
-        var source = fixture.Path / "source";
-        (source / "sub").Mkdir(parents: true);
+        var       source  = fixture.Path / "source";
+        (source / "sub").Mkdir(true);
         (source / "a").WriteText("a");
         (source / "sub" / "b").WriteText("b");
         var target = source.CopyTo(fixture.Path / "target");
@@ -228,16 +228,16 @@ public sealed class FileSystemTests
     public void CopyPreservesLinksUnlessFollowingIsRequested()
     {
         using var fixture = new TestDirectory();
-        var root = fixture.Path;
+        var       root    = fixture.Path;
         (root / "source").Mkdir();
         (root / "outside").WriteText("target");
         (root / "source" / "link").CreateSymbolicLink("../outside");
-        var links = (root / "source").CopyTo(root / "links");
+        var links = (root                                  / "source").CopyTo(root / "links");
         Assert.Equal(Path.Combine("..", "outside"), (links / "link").LinkTarget);
-        var followed = (root / "source").CopyTo(root / "followed", new PathCopyOptions { FollowSymbolicLinks = true });
-        Assert.False((followed / "link").IsSymbolicLink);
-        Assert.Equal("target", (followed / "link").ReadText());
-        (root / "source" / "cycle").CreateSymbolicLink(".", isDirectory: true);
+        var followed = (root                               / "source").CopyTo(root / "followed", new PathCopyOptions { FollowSymbolicLinks = true });
+        Assert.False((followed                             / "link").IsSymbolicLink);
+        Assert.Equal("target", (followed                   / "link").ReadText());
+        (root / "source" / "cycle").CreateSymbolicLink(".", true);
         Assert.Throws<IOException>(() => (root / "source").CopyTo(root / "cycle-copy", new PathCopyOptions { FollowSymbolicLinks = true }));
     }
 
@@ -245,11 +245,11 @@ public sealed class FileSystemTests
     public async Task AtomicWritesReplaceEntriesAndLeaveNoTemporarySiblings()
     {
         using var fixture = new TestDirectory();
-        var file = fixture.Path / "file";
+        var       file    = fixture.Path / "file";
         file.WriteTextAtomic("first");
         await file.WriteTextAtomicAsync("second");
         Assert.Equal("second", file.ReadText());
-        await file.WriteBytesAtomicAsync(new byte[] { 1, 2, 3 }, flushToDisk: true);
+        await file.WriteBytesAtomicAsync(new byte[] { 1, 2, 3 }, true);
         Assert.Equal(new byte[] { 1, 2, 3 }, file.ReadBytes());
         using var cts = new CancellationTokenSource();
         cts.Cancel();
@@ -270,14 +270,14 @@ public sealed class FileSystemTests
     public void TemporaryOwnershipCleansUpAndRejectsReplacements()
     {
         var owner = TemporaryPath.CreateDirectory();
-        var path = owner.Path;
+        var path  = owner.Path;
         (path / "file").Touch();
         owner.Dispose();
         owner.Dispose();
         Assert.False(path.Exists);
-        using var fixture = new TestDirectory();
-        var fileOwner = TemporaryPath.CreateFile(fixture.Path);
-        var original = fileOwner.Path;
+        using var fixture   = new TestDirectory();
+        var       fileOwner = TemporaryPath.CreateFile(fixture.Path);
+        var       original  = fileOwner.Path;
         original.MoveTo(fixture.Path / "saved");
         original.Touch();
         Assert.Throws<IOException>(() => fileOwner.Dispose());
@@ -289,7 +289,7 @@ public sealed class FileSystemTests
     {
         var path = new FilePath("a/./b");
         Assert.Equal(path, JsonSerializer.Deserialize<FilePath>(JsonSerializer.Serialize(path)));
-        var map = new Dictionary<FilePath, int> { [path] = 42 };
+        var map  = new Dictionary<FilePath, int> { [path] = 42 };
         var copy = JsonSerializer.Deserialize<Dictionary<FilePath, int>>(JsonSerializer.Serialize(map));
         Assert.Equal(42, copy![path]);
         Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<FilePath>("\"a\\u0000b\""));
@@ -302,7 +302,7 @@ public sealed class FileSystemTests
         using var fixture = new TestDirectory();
         (fixture.Path / "one").Touch();
         (fixture.Path / "two").Touch();
-        using var cts = new CancellationTokenSource();
+        using var cts   = new CancellationTokenSource();
         using var files = fixture.Path.EnumerateFiles(ct: cts.Token).GetEnumerator();
         Assert.True(files.MoveNext());
         cts.Cancel();
@@ -313,22 +313,22 @@ public sealed class FileSystemTests
     public void DirectoryMergesCannotWriteBackIntoTheirOwnSource()
     {
         using var fixture = new TestDirectory();
-        var source = fixture.Path / "source";
-        (source / "source").Mkdir(parents: true);
+        var       source  = fixture.Path / "source";
+        (source / "source").Mkdir(true);
         (source / "source" / "original").WriteText("keep");
         Assert.Throws<IOException>(() => source.CopyTo(fixture.Path, new PathCopyOptions { MergeDirectories = true, Overwrite = true }));
         Assert.Equal("keep", (source / "source" / "original").ReadText());
-        Assert.False((source / "original").Exists);
+        Assert.False((source         / "original").Exists);
     }
 
     [Fact]
     public void CopyingFollowedDirectoryLinksRejectsDestinationsInsideTheirTargets()
     {
         using var fixture = new TestDirectory();
-        var root = fixture.Path;
+        var       root    = fixture.Path;
         (root / "source").Mkdir();
         (root / "outside").Mkdir();
-        (root / "source" / "link").CreateSymbolicLink(root / "outside", isDirectory: true);
+        (root / "source" / "link").CreateSymbolicLink(root / "outside", true);
         Assert.Throws<IOException>(() => (root / "source").CopyTo(root / "outside" / "copy", new PathCopyOptions { FollowSymbolicLinks = true }));
         Assert.False((root / "outside" / "copy" / "link").Exists);
     }
@@ -337,7 +337,7 @@ public sealed class FileSystemTests
     public void LinkCopiesCanReplaceFilesWithoutOverwritingTheirTargets()
     {
         using var fixture = new TestDirectory();
-        var root = fixture.Path;
+        var       root    = fixture.Path;
         (root / "source").CreateSymbolicLink("missing");
         (root / "destination").WriteText("replace");
         (root / "source").CopyTo(root / "destination", new PathCopyOptions { Overwrite = true });

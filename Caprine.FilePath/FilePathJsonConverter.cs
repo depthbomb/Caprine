@@ -9,10 +9,13 @@ public sealed class FilePathJsonConverter : JsonConverter<FilePath>
 {
     /// <inheritdoc />
     public override FilePath Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => Parse(reader.GetString());
+
     /// <inheritdoc />
     public override void Write(Utf8JsonWriter writer, FilePath value, JsonSerializerOptions options) => writer.WriteStringValue(value.Value);
+
     /// <inheritdoc />
     public override FilePath ReadAsPropertyName(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => Parse(reader.GetString());
+
     /// <inheritdoc />
     public override void WriteAsPropertyName(Utf8JsonWriter writer, FilePath value, JsonSerializerOptions options) => writer.WritePropertyName(value.Value);
 

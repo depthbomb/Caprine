@@ -2,22 +2,22 @@ namespace Caprine.FilePath;
 
 internal sealed class GlobPattern
 {
-    internal int Depth => _parts.Length;
+    internal int  Depth     => _parts.Length;
     internal bool Recursive => Array.IndexOf(_parts, "**") >= 0;
-    internal bool Rooted => _anchor.Length > 0;
+    internal bool Rooted    => _anchor.Length              > 0;
 
-    private readonly string[] _parts;
-    private readonly string _anchor;
+    private readonly string[]   _parts;
+    private readonly string     _anchor;
     private readonly PathFlavor _flavor;
-    private readonly bool _caseSensitive;
+    private readonly bool       _caseSensitive;
 
     internal GlobPattern(string pattern, PathFlavor flavor, bool? caseSensitive)
     {
         ArgumentException.ThrowIfNullOrEmpty(pattern);
         var syntax = new PathSyntax(pattern, flavor);
-        _parts = [.. syntax.Segments];
-        _anchor = syntax.Anchor;
-        _flavor = syntax.Flavor;
+        _parts         = [.. syntax.Segments];
+        _anchor        = syntax.Anchor;
+        _flavor        = syntax.Flavor;
         _caseSensitive = caseSensitive ?? _flavor != PathFlavor.Windows;
     }
 
@@ -40,7 +40,7 @@ internal sealed class GlobPattern
     {
         if (!full)
         {
-            if (parts.Length < _parts.Length || (_anchor.Length > 0 && parts.Length != _parts.Length))
+            if (parts.Length < _parts.Length || _anchor.Length > 0 && parts.Length != _parts.Length)
             {
                 return false;
             }
@@ -56,11 +56,11 @@ internal sealed class GlobPattern
             return true;
         }
 
-        var length = parts.Length + 1;
-        Span<bool> buffers = length <= 128 ? stackalloc bool[length * 2] : new bool[length * 2];
+        var length  = parts.Length + 1;
+        var buffers = length <= 128 ? stackalloc bool[length * 2] : new bool[length * 2];
         buffers.Clear();
         var previous = buffers[..length];
-        var next = buffers[length..];
+        var next     = buffers[length..];
         previous[0] = true;
         foreach (var pattern in _parts)
         {
@@ -83,13 +83,14 @@ internal sealed class GlobPattern
 
             var swap = previous;
             previous = next;
-            next = swap;
+            next     = swap;
         }
 
         return previous[parts.Length];
     }
 
     private bool Equal(string left, string right) => string.Equals(left, right, _caseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase);
+
     private char Fold(char value) => _caseSensitive ? value : char.ToUpperInvariant(value);
 
     private bool MatchSegment(string text, string pattern)
@@ -104,16 +105,16 @@ internal sealed class GlobPattern
             return Equal(text, pattern);
         }
 
-        var length = text.Length + 1;
-        Span<bool> buffers = length <= 256 ? stackalloc bool[length * 2] : new bool[length * 2];
+        var length  = text.Length + 1;
+        var buffers = length <= 256 ? stackalloc bool[length * 2] : new bool[length * 2];
         buffers.Clear();
         var previous = buffers[..length];
-        var next = buffers[length..];
+        var next     = buffers[length..];
         previous[0] = true;
         for (var p = 0; p < pattern.Length; p++)
         {
             var token = pattern[p];
-            var end = token == '[' ? ClassEnd(pattern, p) : -1;
+            var end   = token == '[' ? ClassEnd(pattern, p) : -1;
             next.Clear();
             if (token == '*')
             {
@@ -135,7 +136,7 @@ internal sealed class GlobPattern
 
             var swap = previous;
             previous = next;
-            next = swap;
+            next     = swap;
             if (end > p)
             {
                 p = end;
@@ -143,22 +144,6 @@ internal sealed class GlobPattern
         }
 
         return previous[text.Length];
-    }
-
-    private static int ClassEnd(string pattern, int start)
-    {
-        var i = start + 1;
-        if (i < pattern.Length && pattern[i] == '!')
-        {
-            i++;
-        }
-
-        if (i < pattern.Length && pattern[i] == ']')
-        {
-            i++;
-        }
-
-        return pattern.IndexOf(']', i);
     }
 
     private bool InClass(char value, ReadOnlySpan<char> pattern)
@@ -176,7 +161,7 @@ internal sealed class GlobPattern
             if (i + 2 < pattern.Length && pattern[i + 1] == '-')
             {
                 matched |= value >= Fold(pattern[i]) && value <= Fold(pattern[i + 2]);
-                i += 2;
+                i       += 2;
             }
             else
             {
@@ -185,5 +170,21 @@ internal sealed class GlobPattern
         }
 
         return matched != invert;
+    }
+
+    private static int ClassEnd(string pattern, int start)
+    {
+        var i = start + 1;
+        if (i < pattern.Length && pattern[i] == '!')
+        {
+            i++;
+        }
+
+        if (i < pattern.Length && pattern[i] == ']')
+        {
+            i++;
+        }
+
+        return pattern.IndexOf(']', i);
     }
 }

@@ -6,7 +6,7 @@ public sealed class PosixPath : PurePath
     /// <summary>Creates a POSIX path without accessing the filesystem.</summary>
     /// <param name="path">POSIX path text; empty means ".". Backslashes are ordinary filename characters.</param>
     /// <exception cref="ArgumentException">path contains a null character.</exception>
-    public PosixPath(string path = "") : base(path, PathFlavor.Posix) {}
+    public PosixPath(string path = "") : base(path, PathFlavor.Posix) { }
 
     /// <inheritdoc />
     protected override PurePath Create(string value) => new PosixPath(value);

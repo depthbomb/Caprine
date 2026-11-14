@@ -58,7 +58,7 @@ public sealed class FilePathTests
     public async Task TextAndBytesRoundTripOnEachRuntime()
     {
         var directory = Directory.CreateTempSubdirectory("Caprine.FilePath.Tests-");
-        var path = new FilePath(Path.Combine(directory.FullName, "content.txt"));
+        var path      = new FilePath(Path.Combine(directory.FullName, "content.txt"));
         try
         {
             await path.WriteTextAsync("café 🐐");

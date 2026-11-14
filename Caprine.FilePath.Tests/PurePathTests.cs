@@ -1,5 +1,4 @@
-using System.Collections;
-using System.Collections.Immutable;
+using System.IO.Enumeration;
 
 namespace Caprine.FilePath.Tests;
 
@@ -71,12 +70,12 @@ public sealed class PurePathTests
     public void RelativePathsCompareComponents()
     {
         var parent = new WindowsPath(@"C:\base");
-        var child = new WindowsPath(@"C:\base\..cache\file");
+        var child  = new WindowsPath(@"C:\base\..cache\file");
         Assert.True(child.IsRelativeTo(parent));
         Assert.Equal(@"..cache\file", child.RelativeTo(parent).Value);
         Assert.False(new WindowsPath(@"C:\baseball\file").IsRelativeTo(parent));
         Assert.Throws<ArgumentException>(() => new WindowsPath(@"C:\other\file").RelativeTo(parent));
-        Assert.Equal(@"..\other\file", new WindowsPath(@"C:\other\file").RelativeTo(parent, walkUp: true).Value);
+        Assert.Equal(@"..\other\file", new WindowsPath(@"C:\other\file").RelativeTo(parent, true).Value);
         Assert.False(new WindowsPath(@"D:\file").TryRelativeTo(parent, out _));
     }
 
@@ -84,7 +83,7 @@ public sealed class PurePathTests
     public void LexicalAncestryDoesNotResolveDotDot()
     {
         Assert.True(new PosixPath("base/../other").IsRelativeTo(new PosixPath("base")));
-        Assert.Throws<ArgumentException>(() => new PosixPath("a").RelativeTo(new PosixPath("b/.."), walkUp: true));
+        Assert.Throws<ArgumentException>(() => new PosixPath("a").RelativeTo(new PosixPath("b/.."), true));
     }
 
     [Theory]
@@ -103,7 +102,7 @@ public sealed class PurePathTests
     [Fact]
     public void ComponentsCannotBeMutated()
     {
-        var path = new FilePath("base", "file.tar.gz");
+        var path  = new FilePath("base", "file.tar.gz");
         var parts = (IList<string>)path.Parts;
         Assert.Throws<NotSupportedException>(() => parts[0] = "changed");
         var suffixes = (IList<string>)path.Suffixes;
@@ -160,9 +159,9 @@ public sealed class PurePathTests
         var random = new Random(4182);
         for (var i = 0; i < 5000; i++)
         {
-            var text = new string(Enumerable.Range(0, random.Next(1, 18)).Select(_ => "abc"[random.Next(3)]).ToArray());
-            var pattern = new string(Enumerable.Range(0, random.Next(1, 12)).Select(_ => "abc*?"[random.Next(5)]).ToArray());
-            var expected = System.IO.Enumeration.FileSystemName.MatchesSimpleExpression(pattern, text, ignoreCase: false);
+            var text     = new string(Enumerable.Range(0, random.Next(1, 18)).Select(_ => "abc"[random.Next(3)]).ToArray());
+            var pattern  = new string(Enumerable.Range(0, random.Next(1, 12)).Select(_ => "abc*?"[random.Next(5)]).ToArray());
+            var expected = FileSystemName.MatchesSimpleExpression(pattern, text, false);
             Assert.Equal(expected, new PosixPath(text).FullMatch(pattern));
         }
     }

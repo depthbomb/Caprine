@@ -7,17 +7,23 @@ public sealed partial class FilePath
     /// <param name="options">Overwrite, directory merge, link, and metadata policies. Null uses defaults.</param>
     /// <param name="ct">Cancels between entries. Completed copies remain after cancellation or failure.</param>
     /// <returns>The destination path.</returns>
-    /// <remarks>Existing destination directory links are rejected during merges. Recursive copies reject destinations inside the source. Filesystem races can invalidate these checks.</remarks>
+    /// <remarks>
+    ///     Existing destination directory links are rejected during merges. Recursive copies reject destinations inside
+    ///     the source. Filesystem races can invalidate these checks.
+    /// </remarks>
     /// <exception cref="IOException">A destination conflicts, a cycle is encountered, or copying fails.</exception>
     /// <exception cref="UnauthorizedAccessException">The operating system denies the requested access.</exception>
-    /// <exception cref="OperationCanceledException">ct requests cancellation. Asynchronous methods report cancellation through their task or enumeration.</exception>
+    /// <exception cref="OperationCanceledException">
+    ///     ct requests cancellation. Asynchronous methods report cancellation through
+    ///     their task or enumeration.
+    /// </exception>
     public FilePath CopyTo(FilePath target, PathCopyOptions? options = null, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(target);
         options ??= new PathCopyOptions();
         EnsureDistinctDestination(target);
         var sourceRoot = IsDirectory ? Resolve(true) : null;
-        var pending = new Stack<(FilePath Source, FilePath Target, HashSet<FilePath> Ancestors, bool Finish)>();
+        var pending    = new Stack<(FilePath Source, FilePath Target, HashSet<FilePath> Ancestors, bool Finish)>();
         pending.Push((this, target, [], false));
         while (pending.TryPop(out var item))
         {
@@ -37,7 +43,7 @@ public sealed partial class FilePath
             _ = File.GetAttributes(item.Source.Value);
             if (link is not null && !options.FollowSymbolicLinks)
             {
-                PrepareFileDestination(item.Target, options.Overwrite, removeExisting: true);
+                PrepareFileDestination(item.Target, options.Overwrite, true);
                 item.Target.CreateSymbolicLink(new FilePath(link), (File.GetAttributes(item.Source.Value) & FileAttributes.Directory) != 0);
                 continue;
             }
@@ -49,12 +55,13 @@ public sealed partial class FilePath
                 {
                     throw new IOException("A destination is inside a followed source directory.");
                 }
+
                 if (!item.Ancestors.Add(resolved))
                 {
                     throw new IOException($"A directory link cycle was encountered at {item.Source}.");
                 }
 
-                if (item.Target.IsSymbolicLink || item.Target.IsFile || (item.Target.IsDirectory && !options.MergeDirectories))
+                if (item.Target.IsSymbolicLink || item.Target.IsFile || item.Target.IsDirectory && !options.MergeDirectories)
                 {
                     throw new IOException($"Destination already exists: {item.Target}");
                 }
@@ -96,34 +103,46 @@ public sealed partial class FilePath
     /// <param name="ct">Cancels between entries.</param>
     /// <returns>The destination directory joined with this entry's filename.</returns>
     /// <exception cref="DirectoryNotFoundException">The destination directory does not exist.</exception>
-    /// <exception cref="IOException">The filesystem operation fails. Missing entries can report FileNotFoundException or DirectoryNotFoundException.</exception>
+    /// <exception cref="IOException">
+    ///     The filesystem operation fails. Missing entries can report FileNotFoundException or
+    ///     DirectoryNotFoundException.
+    /// </exception>
     /// <exception cref="UnauthorizedAccessException">The operating system denies the requested access.</exception>
-    /// <exception cref="OperationCanceledException">ct requests cancellation. Asynchronous methods report cancellation through their task or enumeration.</exception>
+    /// <exception cref="OperationCanceledException">
+    ///     ct requests cancellation. Asynchronous methods report cancellation through
+    ///     their task or enumeration.
+    /// </exception>
     public FilePath CopyInto(FilePath directory, PathCopyOptions? options = null, CancellationToken ct = default) =>
         CopyTo(IntoTarget(directory), options, ct);
 
     /// <summary>Moves this entry to an exact destination.</summary>
     /// <param name="target">The exact destination, whose parent must exist.</param>
     /// <param name="overwrite">Whether an existing file may be replaced. Existing directories are never replaced or merged.</param>
-    /// <param name="copyDirectoryOnFailure">Allows a failed directory rename to fall back to copying then deleting the source when the destination is absent. Defaults to false.</param>
+    /// <param name="copyDirectoryOnFailure">
+    ///     Allows a failed directory rename to fall back to copying then deleting the source
+    ///     when the destination is absent. Defaults to false.
+    /// </param>
     /// <returns>The destination path.</returns>
-    /// <remarks>File moves use BCL behavior, including copy/delete across volumes. Directory fallback is non-atomic and can leave a partial destination on failure. Links are moved as entries.</remarks>
+    /// <remarks>
+    ///     File moves use BCL behavior, including copy/delete across volumes. Directory fallback is non-atomic and can
+    ///     leave a partial destination on failure. Links are moved as entries.
+    /// </remarks>
     /// <exception cref="IOException">A destination conflicts or the move fails.</exception>
     /// <exception cref="UnauthorizedAccessException">The operating system denies the requested access.</exception>
     public FilePath MoveTo(FilePath target, bool overwrite = false, bool copyDirectoryOnFailure = false)
     {
         ArgumentNullException.ThrowIfNull(target);
         EnsureDistinctDestination(target);
-        if (IsDirectory || (IsSymbolicLink && (File.GetAttributes(_path) & FileAttributes.Directory) != 0))
+        if (IsDirectory || IsSymbolicLink && (File.GetAttributes(Value) & FileAttributes.Directory) != 0)
         {
             try
             {
-                Directory.Move(_path, target.Value);
+                Directory.Move(Value, target.Value);
             }
             catch (IOException) when (copyDirectoryOnFailure && !IsSymbolicLink && !target.Exists && !target.IsSymbolicLink)
             {
                 CopyTo(target, new PathCopyOptions { PreserveMetadata = true });
-                Directory.Delete(_path, true);
+                Directory.Delete(Value, true);
             }
         }
         else
@@ -133,7 +152,7 @@ public sealed partial class FilePath
                 throw new IOException("A file cannot replace a directory.");
             }
 
-            File.Move(_path, target.Value, overwrite);
+            File.Move(Value, target.Value, overwrite);
         }
 
         return target;
@@ -144,7 +163,10 @@ public sealed partial class FilePath
     /// <param name="overwrite">Whether an existing file may be replaced.</param>
     /// <param name="copyDirectoryOnFailure">Whether to allow non-atomic directory copy/delete fallback.</param>
     /// <returns>The destination directory joined with this entry's filename.</returns>
-    /// <exception cref="IOException">The filesystem operation fails. Missing entries can report FileNotFoundException or DirectoryNotFoundException.</exception>
+    /// <exception cref="IOException">
+    ///     The filesystem operation fails. Missing entries can report FileNotFoundException or
+    ///     DirectoryNotFoundException.
+    /// </exception>
     /// <exception cref="UnauthorizedAccessException">The operating system denies the requested access.</exception>
     public FilePath MoveInto(FilePath directory, bool overwrite = false, bool copyDirectoryOnFailure = false) =>
         MoveTo(IntoTarget(directory), overwrite, copyDirectoryOnFailure);
@@ -152,14 +174,20 @@ public sealed partial class FilePath
     /// <summary>Moves an entry to an exact destination without replacing an existing entry.</summary>
     /// <param name="target">The exact destination.</param>
     /// <returns>The destination path.</returns>
-    /// <exception cref="IOException">The filesystem operation fails. Missing entries can report FileNotFoundException or DirectoryNotFoundException.</exception>
+    /// <exception cref="IOException">
+    ///     The filesystem operation fails. Missing entries can report FileNotFoundException or
+    ///     DirectoryNotFoundException.
+    /// </exception>
     /// <exception cref="UnauthorizedAccessException">The operating system denies the requested access.</exception>
     public FilePath Rename(FilePath target) => MoveTo(target);
 
     /// <summary>Moves an entry to an exact destination without replacing an existing entry.</summary>
     /// <param name="target">The exact destination text.</param>
     /// <returns>The destination path.</returns>
-    /// <exception cref="IOException">The filesystem operation fails. Missing entries can report FileNotFoundException or DirectoryNotFoundException.</exception>
+    /// <exception cref="IOException">
+    ///     The filesystem operation fails. Missing entries can report FileNotFoundException or
+    ///     DirectoryNotFoundException.
+    /// </exception>
     /// <exception cref="UnauthorizedAccessException">The operating system denies the requested access.</exception>
     public FilePath Rename(string target) => MoveTo(new FilePath(target));
 
@@ -177,13 +205,16 @@ public sealed partial class FilePath
             throw new IOException("Replace supports files only. Use MoveTo for directories.");
         }
 
-        return MoveTo(target, overwrite: true);
+        return MoveTo(target, true);
     }
 
     /// <summary>Moves a file to an exact destination, replacing an existing file.</summary>
     /// <param name="target">The exact destination text.</param>
     /// <returns>The destination path.</returns>
-    /// <exception cref="IOException">The filesystem operation fails. Missing entries can report FileNotFoundException or DirectoryNotFoundException.</exception>
+    /// <exception cref="IOException">
+    ///     The filesystem operation fails. Missing entries can report FileNotFoundException or
+    ///     DirectoryNotFoundException.
+    /// </exception>
     /// <exception cref="UnauthorizedAccessException">The operating system denies the requested access.</exception>
     public FilePath Replace(string target) => Replace(new FilePath(target));
 
@@ -205,10 +236,10 @@ public sealed partial class FilePath
 
     private void EnsureDistinctDestination(FilePath target)
     {
-        var source = Resolve();
+        var source      = Resolve();
         var destination = target.Resolve();
-        if (source == destination || (IsDirectory && destination.IsRelativeTo(source)) ||
-            (source.Exists && destination.Exists && source.SameFile(destination)))
+        if (source == destination || IsDirectory && destination.IsRelativeTo(source) ||
+            source.Exists                        && destination.Exists && source.SameFile(destination))
         {
             throw new IOException("The destination is the source, an alias of it, or inside the source directory.");
         }

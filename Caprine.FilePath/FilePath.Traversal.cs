@@ -21,11 +21,17 @@ public sealed partial class FilePath
     /// <param name="options">Traversal and case options; null uses defaults.</param>
     /// <param name="ct">Cancels enumeration between entries.</param>
     /// <returns>Matching paths in filesystem order. Missing or non-directory receivers produce no results.</returns>
-    /// <remarks>Hidden entries are included by default. Directory links are returned but not traversed unless enabled. A bare ** includes this directory.</remarks>
+    /// <remarks>
+    ///     Hidden entries are included by default. Directory links are returned but not traversed unless enabled. A bare
+    ///     ** includes this directory.
+    /// </remarks>
     /// <exception cref="ArgumentException">The pattern is empty or anchored.</exception>
     /// <exception cref="IOException">Enumeration fails.</exception>
     /// <exception cref="UnauthorizedAccessException">The operating system denies the requested access.</exception>
-    /// <exception cref="OperationCanceledException">ct requests cancellation. Asynchronous methods report cancellation through their task or enumeration.</exception>
+    /// <exception cref="OperationCanceledException">
+    ///     ct requests cancellation. Asynchronous methods report cancellation through
+    ///     their task or enumeration.
+    /// </exception>
     public IEnumerable<FilePath> Glob(string pattern, PathTraversalOptions? options = null, CancellationToken ct = default)
     {
         var glob = new GlobPattern(pattern, PathFlavor.Native, options?.CaseSensitive);
@@ -37,7 +43,7 @@ public sealed partial class FilePath
         options ??= new PathTraversalOptions();
         ArgumentOutOfRangeException.ThrowIfNegative(options.MaxDepth);
         var directoriesOnly = Path.EndsInDirectorySeparator(pattern);
-        var depth = glob.Recursive ? options.MaxDepth : Math.Min(options.MaxDepth, Math.Max(0, glob.Depth - 1));
+        var depth           = glob.Recursive ? options.MaxDepth : Math.Min(options.MaxDepth, Math.Max(0, glob.Depth - 1));
         foreach (var visit in Walk(options with { MaxDepth = depth }, ct))
         {
             if (visit.Depth == 0 && glob.MatchesParts([], true))
@@ -61,9 +67,15 @@ public sealed partial class FilePath
     /// <param name="options">Traversal and case options.</param>
     /// <param name="ct">Cancels enumeration between entries.</param>
     /// <returns>Matching paths in filesystem order.</returns>
-    /// <exception cref="IOException">The filesystem operation fails. Missing entries can report FileNotFoundException or DirectoryNotFoundException.</exception>
+    /// <exception cref="IOException">
+    ///     The filesystem operation fails. Missing entries can report FileNotFoundException or
+    ///     DirectoryNotFoundException.
+    /// </exception>
     /// <exception cref="UnauthorizedAccessException">The operating system denies the requested access.</exception>
-    /// <exception cref="OperationCanceledException">ct requests cancellation. Asynchronous methods report cancellation through their task or enumeration.</exception>
+    /// <exception cref="OperationCanceledException">
+    ///     ct requests cancellation. Asynchronous methods report cancellation through
+    ///     their task or enumeration.
+    /// </exception>
     public IEnumerable<FilePath> RGlob(string pattern, PathTraversalOptions? options = null, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(pattern);
@@ -77,7 +89,10 @@ public sealed partial class FilePath
 
     /// <summary>Lazily enumerates immediate children.</summary>
     /// <returns>Child paths in filesystem order, or no results for a missing or non-directory receiver.</returns>
-    /// <exception cref="IOException">The filesystem operation fails. Missing entries can report FileNotFoundException or DirectoryNotFoundException.</exception>
+    /// <exception cref="IOException">
+    ///     The filesystem operation fails. Missing entries can report FileNotFoundException or
+    ///     DirectoryNotFoundException.
+    /// </exception>
     /// <exception cref="UnauthorizedAccessException">The operating system denies the requested access.</exception>
     public IEnumerable<FilePath> IterDir() => EnumerateEntries();
 
@@ -85,9 +100,15 @@ public sealed partial class FilePath
     /// <param name="options">Null enumerates immediate children only. Otherwise MaxDepth controls recursion.</param>
     /// <param name="ct">Cancels traversal between entries.</param>
     /// <returns>Entries grouped by directory in pre-order, without sorting.</returns>
-    /// <exception cref="IOException">The filesystem operation fails. Missing entries can report FileNotFoundException or DirectoryNotFoundException.</exception>
+    /// <exception cref="IOException">
+    ///     The filesystem operation fails. Missing entries can report FileNotFoundException or
+    ///     DirectoryNotFoundException.
+    /// </exception>
     /// <exception cref="UnauthorizedAccessException">The operating system denies the requested access.</exception>
-    /// <exception cref="OperationCanceledException">ct requests cancellation. Asynchronous methods report cancellation through their task or enumeration.</exception>
+    /// <exception cref="OperationCanceledException">
+    ///     ct requests cancellation. Asynchronous methods report cancellation through
+    ///     their task or enumeration.
+    /// </exception>
     public IEnumerable<FilePath> EnumerateEntries(PathTraversalOptions? options = null, CancellationToken ct = default) =>
         EnumerateWalkEntries(options, ct, null);
 
@@ -95,9 +116,15 @@ public sealed partial class FilePath
     /// <param name="options">Null enumerates immediate files only.</param>
     /// <param name="ct">Cancels traversal between entries.</param>
     /// <returns>File paths in filesystem order.</returns>
-    /// <exception cref="IOException">The filesystem operation fails. Missing entries can report FileNotFoundException or DirectoryNotFoundException.</exception>
+    /// <exception cref="IOException">
+    ///     The filesystem operation fails. Missing entries can report FileNotFoundException or
+    ///     DirectoryNotFoundException.
+    /// </exception>
     /// <exception cref="UnauthorizedAccessException">The operating system denies the requested access.</exception>
-    /// <exception cref="OperationCanceledException">ct requests cancellation. Asynchronous methods report cancellation through their task or enumeration.</exception>
+    /// <exception cref="OperationCanceledException">
+    ///     ct requests cancellation. Asynchronous methods report cancellation through
+    ///     their task or enumeration.
+    /// </exception>
     public IEnumerable<FilePath> EnumerateFiles(PathTraversalOptions? options = null, CancellationToken ct = default) =>
         EnumerateWalkEntries(options, ct, false);
 
@@ -105,9 +132,15 @@ public sealed partial class FilePath
     /// <param name="options">Null enumerates immediate directories only.</param>
     /// <param name="ct">Cancels traversal between entries.</param>
     /// <returns>Directory paths in filesystem order.</returns>
-    /// <exception cref="IOException">The filesystem operation fails. Missing entries can report FileNotFoundException or DirectoryNotFoundException.</exception>
+    /// <exception cref="IOException">
+    ///     The filesystem operation fails. Missing entries can report FileNotFoundException or
+    ///     DirectoryNotFoundException.
+    /// </exception>
     /// <exception cref="UnauthorizedAccessException">The operating system denies the requested access.</exception>
-    /// <exception cref="OperationCanceledException">ct requests cancellation. Asynchronous methods report cancellation through their task or enumeration.</exception>
+    /// <exception cref="OperationCanceledException">
+    ///     ct requests cancellation. Asynchronous methods report cancellation through
+    ///     their task or enumeration.
+    /// </exception>
     public IEnumerable<FilePath> EnumerateDirectories(PathTraversalOptions? options = null, CancellationToken ct = default) =>
         EnumerateWalkEntries(options, ct, true);
 
@@ -115,11 +148,20 @@ public sealed partial class FilePath
     /// <param name="options">Depth, link, hidden-entry, error, and pruning options. Null uses defaults.</param>
     /// <param name="ct">Cancels traversal between entries and directories.</param>
     /// <returns>Snapshots starting with this directory at depth zero. Missing or non-directory receivers produce no results.</returns>
-    /// <remarks>Use ShouldDescend to prune subtrees. When following links, repeated resolved directories are skipped. Filesystem changes can invalidate snapshots.</remarks>
+    /// <remarks>
+    ///     Use ShouldDescend to prune subtrees. When following links, repeated resolved directories are skipped.
+    ///     Filesystem changes can invalidate snapshots.
+    /// </remarks>
     /// <exception cref="ArgumentOutOfRangeException">MaxDepth is negative.</exception>
     /// <exception cref="UnauthorizedAccessException">Access is denied and IgnoreInaccessible is false.</exception>
-    /// <exception cref="IOException">The filesystem operation fails. Missing entries can report FileNotFoundException or DirectoryNotFoundException.</exception>
-    /// <exception cref="OperationCanceledException">ct requests cancellation. Asynchronous methods report cancellation through their task or enumeration.</exception>
+    /// <exception cref="IOException">
+    ///     The filesystem operation fails. Missing entries can report FileNotFoundException or
+    ///     DirectoryNotFoundException.
+    /// </exception>
+    /// <exception cref="OperationCanceledException">
+    ///     ct requests cancellation. Asynchronous methods report cancellation through
+    ///     their task or enumeration.
+    /// </exception>
     public IEnumerable<DirectoryVisit> Walk(PathTraversalOptions? options = null, CancellationToken ct = default)
     {
         options ??= new PathTraversalOptions();
@@ -142,12 +184,12 @@ public sealed partial class FilePath
             }
 
             var directories = ImmutableArray.CreateBuilder<FilePath>();
-            var files = ImmutableArray.CreateBuilder<FilePath>();
+            var files       = ImmutableArray.CreateBuilder<FilePath>();
             var enumeration = new EnumerationOptions
             {
-                IgnoreInaccessible = options.IgnoreInaccessible,
-                AttributesToSkip = options.IncludeHidden ? 0 : FileAttributes.Hidden,
-                ReturnSpecialDirectories = false
+                IgnoreInaccessible       = options.IgnoreInaccessible,
+                AttributesToSkip         = options.IncludeHidden ? 0 : FileAttributes.Hidden,
+                ReturnSpecialDirectories = false,
             };
             foreach (var info in new DirectoryInfo(item.Path.Value).EnumerateFileSystemInfos("*", enumeration))
             {
@@ -178,7 +220,7 @@ public sealed partial class FilePath
             for (var i = children.Length - 1; i >= 0; i--)
             {
                 var child = children[i];
-                if ((!options.FollowSymbolicLinks && child.IsSymbolicLink) || options.ShouldDescend?.Invoke(child) == false)
+                if (!options.FollowSymbolicLinks && child.IsSymbolicLink || options.ShouldDescend?.Invoke(child) == false)
                 {
                     continue;
                 }
@@ -194,9 +236,9 @@ public sealed partial class FilePath
         {
             var entries = directoriesOnly switch
             {
-                true => visit.Directories.AsEnumerable(),
+                true  => visit.Directories.AsEnumerable(),
                 false => visit.Files.AsEnumerable(),
-                null => visit.Directories.Concat(visit.Files)
+                null  => visit.Directories.Concat(visit.Files),
             };
             foreach (var entry in entries)
             {
@@ -210,7 +252,7 @@ public sealed partial class FilePath
     {
         try
         {
-            return (File.GetAttributes(_path) & FileAttributes.Directory) != 0;
+            return (File.GetAttributes(Value) & FileAttributes.Directory) != 0;
         }
         catch (FileNotFoundException)
         {

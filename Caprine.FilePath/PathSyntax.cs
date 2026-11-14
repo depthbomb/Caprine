@@ -4,15 +4,15 @@ namespace Caprine.FilePath;
 
 internal sealed class PathSyntax
 {
-    internal string Value { get; }
-    internal string Drive { get; }
-    internal string Root { get; }
-    internal string Anchor => Drive + Root;
-    internal PathFlavor Flavor { get; }
-    internal ImmutableArray<string> Segments { get; }
-    internal char Separator => Flavor == PathFlavor.Windows ? '\\' : '/';
-    internal StringComparer Comparer => Flavor == PathFlavor.Windows ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
-    internal bool IsAbsolute => Root.Length > 0 && (Flavor == PathFlavor.Posix || Drive.Length > 0);
+    internal string                 Value      { get; }
+    internal string                 Drive      { get; }
+    internal string                 Root       { get; }
+    internal string                 Anchor     => Drive + Root;
+    internal PathFlavor             Flavor     { get; }
+    internal ImmutableArray<string> Segments   { get; }
+    internal char                   Separator  => Flavor      == PathFlavor.Windows ? '\\' : '/';
+    internal StringComparer         Comparer   => Flavor      == PathFlavor.Windows ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+    internal bool                   IsAbsolute => Root.Length > 0 && (Flavor == PathFlavor.Posix || Drive.Length > 0);
 
     internal PathSyntax(string path, PathFlavor flavor)
     {
@@ -24,15 +24,15 @@ internal sealed class PathSyntax
 
         Flavor = flavor switch
         {
-            PathFlavor.Native => OperatingSystem.IsWindows() ? PathFlavor.Windows : PathFlavor.Posix,
+            PathFlavor.Native                      => OperatingSystem.IsWindows() ? PathFlavor.Windows : PathFlavor.Posix,
             PathFlavor.Windows or PathFlavor.Posix => flavor,
-            _ => throw new ArgumentOutOfRangeException(nameof(flavor))
+            _                                      => throw new ArgumentOutOfRangeException(nameof(flavor)),
         };
 
         var text = Flavor == PathFlavor.Windows ? path.Replace('/', '\\') : path;
         (Drive, Root, var start) = ReadAnchor(text, Flavor);
-        var tail = text.AsSpan(start);
-        var segments = ImmutableArray.CreateBuilder<string>(tail.IsEmpty ? 0 : tail.Count(Separator) + 1);
+        var tail            = text.AsSpan(start);
+        var segments        = ImmutableArray.CreateBuilder<string>(tail.IsEmpty ? 0 : tail.Count(Separator) + 1);
         var componentLength = 0;
         foreach (var range in tail.Split(Separator))
         {
@@ -60,7 +60,7 @@ internal sealed class PathSyntax
     {
         ArgumentException.ThrowIfNullOrEmpty(name);
         if (name is "." or ".." || name.Contains('\0') || name.Contains('/') ||
-            (flavor == PathFlavor.Windows && (name.AsSpan().IndexOfAny("\\:<>\"|?*".AsSpan()) >= 0 || name.AsSpan().IndexOfAnyInRange('\u0001', '\u001f') >= 0)))
+            flavor == PathFlavor.Windows && (name.AsSpan().IndexOfAny("\\:<>\"|?*".AsSpan()) >= 0 || name.AsSpan().IndexOfAnyInRange('\u0001', '\u001f') >= 0))
         {
             throw new ArgumentException("A name must be a single filename component.", nameof(name));
         }
@@ -79,11 +79,11 @@ internal sealed class PathSyntax
             return ("", count == 2 ? "//" : count > 0 ? "/" : "", count);
         }
 
-        var prefix = text.StartsWith("\\\\?\\", StringComparison.Ordinal) || text.StartsWith("\\\\.\\", StringComparison.Ordinal) ? 4 : 0;
+        var prefix   = text.StartsWith("\\\\?\\", StringComparison.Ordinal) || text.StartsWith("\\\\.\\", StringComparison.Ordinal) ? 4 : 0;
         var uncStart = prefix > 0 && text.AsSpan(prefix).StartsWith("UNC\\", StringComparison.OrdinalIgnoreCase) ? 8 : prefix == 0 && text.StartsWith("\\\\", StringComparison.Ordinal) ? 2 : -1;
         if (uncStart >= 0)
         {
-            var serverEnd = text.IndexOf('\\', uncStart);
+            var serverEnd  = text.IndexOf('\\', uncStart);
             var shareStart = serverEnd + 1;
             if (serverEnd > uncStart && shareStart < text.Length && text[shareStart] != '\\')
             {
